@@ -1,5 +1,14 @@
 # Build Log
 
+## 2026-08-08 — feat(tools): cutInHalf Step 1 — STL-Parser + Formaterkennung
+**Was:** Grundgerüst für den Dezimierer. Parser und Erkennung 1:1 aus `stl2model.js`
+übernommen statt geteilt — die beiden Skripte sind eigenständige WebStorm-Läufe
+ohne Modul-Setup, ein gemeinsames `require` wäre hier mehr Struktur als Nutzen.
+Erkennung über `84 + count*50 == Dateigröße`, nicht über den Header
+(skullwithbrain.stl lügt dort). Liest die Dreieckssuppe und loggt die Rohzahl.
+**Nicht gebaut:** kein GITTER, kein Ausgabepfad — kommen in Step 2 und 3. Keine
+OBJ-Unterstützung, kein Streaming-Reader, Normalen werden beim Parsen verworfen.
+
 ## 2026-08-08 — feat(renderer): Zoom per Rechtsklick + Mausrad
 **Was:** `dz` per Mausrad bei gehaltener rechter Taste, multiplikativ (Faktor 1.1),
 weil ein fester Schritt bei dz=10 unsichtbar und bei dz=0.5 ein Sprung wäre.
