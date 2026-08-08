@@ -1,5 +1,18 @@
 # Build Log
 
+## 2026-08-09 — feat(tools): obj2model nimmt auch einen ganzen Ordner
+**Was:** `OBJ_DATEI` heißt jetzt `OBJ_QUELLE` und darf eine Datei **oder** ein Ordner
+sein; beim Ordner wird jede `.obj` darin umgewandelt. Die Umwandlung ist dafür in
+`umwandeln(datei, nameVorgabe)` gewandert. `MODELL_NAME` gilt nur noch im
+Einzeldatei-Modus — zwanzig Dateien können nicht denselben Namen tragen, im Stapel
+kommt er aus dem Dateinamen. Umbenannt, weil ein Name mit „DATEI" für etwas, das auch
+ein Ordner sein darf, in die Irre führt.
+**Nicht gebaut:** nicht rekursiv, keine Dateimuster, kein Überspringen vorhandener
+Ausgaben, kein Parallelbetrieb. Zwei bewusste Zusätze: pro Datei ein `try/catch`, damit
+eine kaputte den Stapel nicht abbricht, und ein Guard gegen 0 Vertizes — der hätte
+sonst durch Division eine Datei voller NaN geschrieben, was im Stapel niemandem
+auffällt.
+
 ## 2026-08-09 — feat(renderer): Achsenwechsel auch auf Taste `a`
 **Was:** Die Daumentaste kommt in WebStorms eingebauter Vorschau nicht an — erst fängt
 das Standard-Keymap `Button4` für *Navigate Back* ab, und nach dem Entfernen reicht

@@ -22,7 +22,12 @@
 // Relativ geht auch, wird dann aber von genau diesem Working directory
 // aus gezaehlt, nicht vom Speicherort dieser Datei.
 // Findet er nichts, meldet Node ENOENT mit dem Pfad den er gesucht hat.
-const OBJ_DATEI = "/home/saosgone/Schreibtisch/coding/objFiles/12327_Statue_V1_L3.obj";
+//
+// Darf eine einzelne .obj sein ODER ein ganzer Ordner. Beim Ordner wird jede
+// .obj darin umgewandelt — nicht rekursiv, Unterordner bleiben aussen vor.
+// Eine kaputte Datei haelt den Stapel nicht auf, sie wird gemeldet und
+// uebersprungen.
+const OBJ_QUELLE = "/home/saosgone/Schreibtisch/coding/objFiles/12221_Cat_v1_l3.obj";
 
 // Wohin die fertige .js geschrieben wird. Gleiche Regel wie oben:
 // absolut = eindeutig, relativ = vom Working directory aus.
@@ -34,7 +39,10 @@ const AUSGABE_ORDNER = "/home/saosgone/Schreibtisch/coding/obj2model";
 // Selbst setzen lohnt, wenn die .obj kryptisch heisst (16834_hand_v1_NEW).
 // Muss ein gueltiger JS-Bezeichner sein: keine Leerzeichen, keine Bindestriche,
 // nicht mit einer Ziffer anfangen.
-const MODELL_NAME = "statue00";
+// Gilt nur bei einer einzelnen Datei. Zeigt OBJ_QUELLE auf einen Ordner, wird
+// dieser Wert ignoriert — zwanzig Dateien koennen nicht denselben Namen haben,
+// jede bekommt dann ihren aus dem Dateinamen.
+const MODELL_NAME = "cat";
 
 // Halbe Ausdehnung des fertigen Modells. Bei 1.2 reicht es von -1.2 bis +1.2,
 // zentriert um 0,0,0. Passt zu deinen anderen Modellen und zu screen(),
@@ -54,66 +62,98 @@ const Z_SPIEGELN = true;
 const fs = require("fs");
 const path = require("path");
 
-// ---------- parsen ----------
-//   v x y z          -> ein Vertex
-//   f 1 2 3          -> eine Flaeche, Indizes AB 1 (nicht ab 0!) — daher das -1
-//   f 1//1 2//2      -> mit Normalen-Index, wir nehmen nur den Teil vor dem Slash
-const vs = [];
-const faces = [];
+// Wandelt genau eine .obj um. nameVorgabe leer = Name aus dem Dateinamen.
+function umwandeln(objDatei, nameVorgabe) {
+  // ---------- parsen ----------
+  //   v x y z          -> ein Vertex
+  //   f 1 2 3          -> eine Flaeche, Indizes AB 1 (nicht ab 0!) — daher das -1
+  //   f 1//1 2//2      -> mit Normalen-Index, wir nehmen nur den Teil vor dem Slash
+  const vs = [];
+  const faces = [];
 
-for (const line of fs.readFileSync(OBJ_DATEI, "utf8").split("\n")) {
-  const t = line.trim();
-  if (t.startsWith("v ")) {
-    const [, x, y, z] = t.split(/\s+/);
-    vs.push({ x: +x, y: +y, z: +z });
-  } else if (t.startsWith("f ")) {
-    faces.push(
-        t.split(/\s+/).slice(1).map((tok) => parseInt(tok.split("/")[0], 10) - 1)
-    );
+  for (const line of fs.readFileSync(objDatei, "utf8").split("\n")) {
+    const t = line.trim();
+    if (t.startsWith("v ")) {
+      const [, x, y, z] = t.split(/\s+/);
+      vs.push({ x: +x, y: +y, z: +z });
+    } else if (t.startsWith("f ")) {
+      faces.push(
+          t.split(/\s+/).slice(1).map((tok) => parseInt(tok.split("/")[0], 10) - 1)
+      );
+    }
   }
-}
 
-// ---------- zentrieren + skalieren ----------
-// Bounding-Box-Mitte auf 0,0,0 schieben, dann so skalieren dass die
-// groesste der drei Halb-Ausdehnungen genau GROESSE ist.
-const mid = {};
-const half = {};
-for (const k of ["x", "y", "z"]) {
-  let lo = Infinity, hi = -Infinity;
-  for (const q of vs) {
-    if (q[k] < lo) lo = q[k];
-    if (q[k] > hi) hi = q[k];
+  // Ohne Vertizes gaebe die Skalierung unten Infinity und wir schrieben stumm
+  // eine Datei voller NaN. Im Stapelbetrieb faellt so etwas sonst nicht auf.
+  if (vs.length === 0) {
+    throw new Error("keine Vertizes gefunden — ist das ueberhaupt eine .obj?");
   }
-  mid[k] = (lo + hi) / 2;
-  half[k] = (hi - lo) / 2;
+
+  // ---------- zentrieren + skalieren ----------
+  // Bounding-Box-Mitte auf 0,0,0 schieben, dann so skalieren dass die
+  // groesste der drei Halb-Ausdehnungen genau GROESSE ist.
+  const mid = {};
+  const half = {};
+  for (const k of ["x", "y", "z"]) {
+    let lo = Infinity, hi = -Infinity;
+    for (const q of vs) {
+      if (q[k] < lo) lo = q[k];
+      if (q[k] > hi) hi = q[k];
+    }
+    mid[k] = (lo + hi) / 2;
+    half[k] = (hi - lo) / 2;
+  }
+  const f = GROESSE / Math.max(half.x, half.y, half.z);
+  const zf = Z_SPIEGELN ? -1 : 1;
+
+  const out = vs.map((v) => ({
+    x: +((v.x - mid.x) * f).toFixed(3),
+    y: +((v.y - mid.y) * f).toFixed(3),
+    z: +((v.z - mid.z) * f * zf).toFixed(3),
+  }));
+
+  // ---------- schreiben ----------
+  let name = nameVorgabe;
+  if (!name) {
+    name = path.basename(objDatei, path.extname(objDatei)).replace(/[^a-zA-Z0-9]/g, "_");
+    // fuehrende Ziffer waere kein gueltiger JS-Bezeichner
+    if (/^[0-9]/.test(name)) name = "m" + name;
+  }
+
+  const body =
+      `const ${name} = {\n` +
+      `  vs: [\n` +
+      out.map((v) => `    {x: ${v.x}, y: ${v.y}, z: ${v.z}},`).join("\n") +
+      `\n  ],\n  fs: [\n` +
+      faces.map((f) => `    [${f.join(",")}],`).join("\n") +
+      `\n  ]\n};\nexport default ${name};\n`;
+
+  fs.mkdirSync(AUSGABE_ORDNER, { recursive: true });
+  const ziel = path.join(AUSGABE_ORDNER, name + ".js");
+  fs.writeFileSync(ziel, body);
+
+  console.log(`${ziel} — ${out.length} vs, ${faces.length} fs`);
 }
-const f = GROESSE / Math.max(half.x, half.y, half.z);
-const zf = Z_SPIEGELN ? -1 : 1;
 
-const out = vs.map((v) => ({
-  x: +((v.x - mid.x) * f).toFixed(3),
-  y: +((v.y - mid.y) * f).toFixed(3),
-  z: +((v.z - mid.z) * f * zf).toFixed(3),
-}));
-
-// ---------- schreiben ----------
-let name = MODELL_NAME;
-if (!name) {
-  name = path.basename(OBJ_DATEI, ".obj").replace(/[^a-zA-Z0-9]/g, "_");
-  // fuehrende Ziffer waere kein gueltiger JS-Bezeichner
-  if (/^[0-9]/.test(name)) name = "m" + name;
+// ---------- einzelne datei oder ganzer ordner? ----------
+if (fs.statSync(OBJ_QUELLE).isDirectory()) {
+  const dateien = fs.readdirSync(OBJ_QUELLE)
+      .filter((n) => n.toLowerCase().endsWith(".obj"))
+      .sort();
+  if (dateien.length === 0) {
+    throw new Error(`${OBJ_QUELLE} enthaelt keine .obj-Dateien.`);
+  }
+  let fehler = 0;
+  for (const n of dateien) {
+    // eine kaputte Datei darf den Rest des Stapels nicht aufhalten
+    try {
+      umwandeln(path.join(OBJ_QUELLE, n), "");
+    } catch (e) {
+      fehler++;
+      console.error(`${n} uebersprungen: ${e.message}`);
+    }
+  }
+  console.log(`${dateien.length - fehler} von ${dateien.length} umgewandelt`);
+} else {
+  umwandeln(OBJ_QUELLE, MODELL_NAME);
 }
-
-const body =
-    `const ${name} = {\n` +
-    `  vs: [\n` +
-    out.map((v) => `    {x: ${v.x}, y: ${v.y}, z: ${v.z}},`).join("\n") +
-    `\n  ],\n  fs: [\n` +
-    faces.map((f) => `    [${f.join(",")}],`).join("\n") +
-    `\n  ]\n};\nexport default ${name};\n`;
-
-fs.mkdirSync(AUSGABE_ORDNER, { recursive: true });
-const ziel = path.join(AUSGABE_ORDNER, name + ".js");
-fs.writeFileSync(ziel, body);
-
-console.log(`${ziel} — ${out.length} vs, ${faces.length} fs`);
