@@ -1,5 +1,12 @@
 # Build Log
 
+## 2026-08-08 — refactor(renderer): rotate_xz/xy/yz zusammengefasst, toten Code raus
+**Was:** Ponytail-Audit-Fund umgesetzt: die drei fast identischen `rotate_xz/xy/yz`
+zu einer `rotate(v, angle, [a,b])` zusammengefasst (Ebene als Achsenpaar statt
+eigener Funktion pro Ebene). Dazu totes Zeug raus: unbenutztes `FOREGROUND`,
+unbenutztes `dt` + auskommentiertes `dz += 0.25*dt`, Debug-`console.log`s.
+**Nicht gebaut:** —
+
 ## 2026-08-08 — chore: ponytail-Audit — totes vite raus, setTimeout-Ceiling markiert
 **Was:** `vite`-devDependency aus package.json entfernt (nie benutzt, kein Script/Config
 dafür). In renderer.js einen `ponytail:`-Kommentar über der Animationsschleife ergänzt —

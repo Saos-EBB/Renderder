@@ -1,11 +1,8 @@
 import {importModel} from "./modelle/modelle.js";
-console.log(leinwand)
 leinwand.width = 800
 leinwand.height = 800
 const BACKGROUND = '#000000'
-const FOREGROUND = '#155545'
 const ctx = leinwand.getContext("2d")
-console.log(ctx)
 function clear() {
     ctx.fillStyle = BACKGROUND
     ctx.fillRect(0, 0, leinwand.width, leinwand.height)
@@ -46,7 +43,7 @@ window.addEventListener("mousemove", (e) => {
     const dx = (e.clientX - letzte.x) * 0.01   // horizontal
     const dy = (letzte.y - e.clientY) * 0.01   // vertikal (invertiert)
     // um die BILDSCHIRM-Achsen drehen: horizontal -> Y, vertikal -> X
-    mesh = mesh.map(v => rotate_yz(rotate_xz(v, dx), dy))
+    mesh = mesh.map(v => rotate(rotate(v, dx, ["x", "z"]), dy, ["y", "z"]))
     letzte = {x: e.clientX, y: e.clientY}
 })
 // 'Modelle ' ----------------------------------------
@@ -60,31 +57,14 @@ let dz = 2.5;  // wo start ??
 function translate_z({x, y, z}, dz) {
     return {x, y, z: z + dz};
 }
-function rotate_xz({x, y, z}, angle) {
+// dreht v in der durch [a, b] aufgespannten Ebene (z.B. ["x","z"] statt eigener rotate_xz)
+function rotate(v, angle, [a, b]) {
     const c = Math.cos(angle);
     const s = Math.sin(angle);
     return {
-        x: x * c - z * s,
-        y,
-        z: x * s + z * c,
-    }
-}
-function rotate_xy({x, y, z}, angle) {
-    const c = Math.cos(angle);
-    const s = Math.sin(angle);
-    return {
-        x: x * c - y * s,
-        y: x * s + y * c,
-        z,
-    }
-}
-function rotate_yz({x, y, z}, angle) {
-    const c = Math.cos(angle);
-    const s = Math.sin(angle);
-    return {
-        x,
-        y: y * c - z * s,
-        z: y * s + z * c,
+        ...v,
+        [a]: v[a] * c - v[b] * s,
+        [b]: v[a] * s + v[b] * c,
     }
 }
 
@@ -98,12 +78,10 @@ const Z_FERN = dz + 1.8
 
 // Orientierung als bereits gedrehte Vertizes. Start = dein Preset, einmal
 // eingebacken. Danach dreht nur noch das Ziehen weiter.
-let mesh = vs.map(v => rotate_xy(rotate_xz(v, 5.5), 4.678))
+let mesh = vs.map(v => rotate(rotate(v, 5.5, ["x", "z"]), 4.678, ["x", "y"]))
 
 
 function frame() {
-    const dt = 0.5 / FPS // 0.5 /FPS  == SPEED of translate
-    //dz += 0.25*dt
     clear()
 
 
