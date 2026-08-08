@@ -81,21 +81,44 @@ const fs = model.fs
 // eingebacken. Danach dreht nur noch das Ziehen weiter.
 let mesh = model.vs.map(v => rotate(rotate(v, 5.5, ["x", "z"]), 4.678, ["x", "y"]))
 
-// Eindeutige Kantenliste, einmal vorab: fs aendert sich nie, und benachbarte
-// Faces teilen sich jede Kante — ohne das hier zeichnen wir jede Kante doppelt
-// (bei skull 161472 statt 80736 pro Frame).
-const kanten = []
-const gesehen = new Set()
-for (const f of fs) {
-    for (let i = 0; i < f.length; i++) {
-        const a = f[i]
-        const b = f[(i + 1) % f.length]
-        const key = a < b ? `${a},${b}` : `${b},${a}`
-        if (gesehen.has(key)) continue
-        gesehen.add(key)
-        kanten.push([a, b])
+// --- Cutaway: eine Schnittebene laesst eine Haelfte weg, damit man ins Modell
+// hineinsieht. Getestet wird auf den ROHEN Modellkoordinaten, also vor der
+// Rotation — die Ebene dreht dadurch mit dem Modell mit statt im Raum zu
+// stehen. Das ist gewollt und spart das Zuruecktransformieren.
+const ACHSE = "z"          // "x" | "y" | "z" — je nach Ausrichtung des Modells
+let CUT = 0                // Modellkoordinate, sinnvoll etwa -1.2 .. 1.2
+const CUT_SCHRITT = 0.05
+
+// Eindeutige Kantenliste: fs aendert sich nie, und benachbarte Faces teilen
+// sich jede Kante — ohne das hier zeichnen wir jede Kante doppelt (bei skull
+// 161472 statt 80736 pro Frame).
+// Hier faellt auch der Cutaway. Nicht in der Draw-Schleife, denn die laeuft
+// ueber Kanten, nicht ueber Flaechen — der Test gehoert dahin, wo es noch
+// Flaechen gibt. Nebeneffekt: er kostet nichts pro Frame, nur bei Aenderung.
+// Bewusst grob: eine Flaeche ist ganz drin oder ganz draussen, entschieden
+// ueber ihren Schwerpunkt. Die Schnittkante wird dadurch gezackt und folgt den
+// Dreieckskanten, und das Innere liegt hohl frei. Genau richtig zum Reinschauen.
+let kanten = []
+function kantenBauen() {
+    kanten = []
+    const gesehen = new Set()
+    for (const f of fs) {
+        // Schwerpunkt auf der Schnittachse. Ueber f.length, nicht ueber 3:
+        // aus .obj kommen auch Vierecke, aus .stl nur Dreiecke.
+        let s = 0
+        for (const i of f) s += model.vs[i][ACHSE]
+        if (s / f.length > CUT) continue
+        for (let i = 0; i < f.length; i++) {
+            const a = f[i]
+            const b = f[(i + 1) % f.length]
+            const key = a < b ? `${a},${b}` : `${b},${a}`
+            if (gesehen.has(key)) continue
+            gesehen.add(key)
+            kanten.push([a, b])
+        }
     }
 }
+kantenBauen()
 
 // z-Fenster fuer das Shading: aus der echten z-Spanne des Meshes statt geraten.
 // Fest verdrahtete +-1.8 waren breiter als jedes Modell, dadurch landeten fast
@@ -152,6 +175,14 @@ leinwand.addEventListener("wheel", (e) => {
     dz = e.deltaY < 0 ? dz * ZOOM_SCHRITT : dz / ZOOM_SCHRITT
     if (dz < DZ_MIN) dz = DZ_MIN
 }, {passive: false})
+// "," und "." fahren die Schnittebene durch das Modell. Die Kantenliste muss
+// dabei neu gebaut werden — das kostet einmal pro Tastendruck, nicht pro Frame.
+window.addEventListener("keydown", (e) => {
+    if (e.key === ",") CUT -= CUT_SCHRITT
+    else if (e.key === ".") CUT += CUT_SCHRITT
+    else return
+    kantenBauen()
+})
 // bewusst auf window, nicht auf leinwand: sonst bleibt das Modell haengen,
 // sobald du beim Ziehen aus der Leinwand rausfaehrst
 window.addEventListener("mouseup", () => { ziehen = false })

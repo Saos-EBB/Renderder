@@ -1,5 +1,20 @@
 # Build Log
 
+## 2026-08-09 — feat(renderer): Cutaway per Schnittebene
+**Was:** Achsen-ausgerichtete Schnittebene (`ACHSE`, `CUT`), die eine Hälfte weglässt,
+damit man ins Modell sieht. `,` und `.` fahren den Schnitt durch. Der Test läuft auf
+den rohen Koordinaten aus `model.vs`, die Ebene dreht also mit dem Modell mit.
+**Wo der Test sitzt und warum:** die Draw-Schleife iteriert über die deduplizierte
+Kantenliste, nicht über Flächen — es gibt dort keine Fläche zum Überspringen. Der
+Test sitzt deshalb im Aufbau der Kantenliste, die bei Änderung von `CUT` neu gebaut
+wird. Semantik identisch (Fläche ganz drin oder ganz draußen), kostet aber nichts pro
+Frame und erhält die Dedup-Optimierung aus `a8da05a`.
+Schwerpunkt über `f.length` statt über 3, weil `skull` nachweislich Dreiecke **und**
+Vierecke enthält. Geprüft: 0 % der Kanten bei CUT −1.5, 100 % bei +1.5, monoton
+dazwischen, über alle drei Achsen.
+**Nicht gebaut:** kein Triangle-Splitting (Schnittkante bleibt gezackt), kein Deckel,
+kein Per-Modell-Flag, keine kamera-relative Ebene, kein Clamping von `CUT`.
+
 ## 2026-08-09 — feat(modelle): sieben neue Modelle, Zwischenstufen ignoriert
 **Was:** Die Namensliste nannte zehn Modelle, deren Dateien nicht im Repo lagen — ein
 frischer Clone wäre beim Auswählen in einen 404 gelaufen. Sieben davon sind jetzt drin
