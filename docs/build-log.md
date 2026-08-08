@@ -1,5 +1,17 @@
 # Build Log
 
+## 2026-08-08 — feat(tools): cutInHalf Step 3 — Binär-STL-Writer + Report
+**Was:** Schreibt die geclusterten Dreiecke als binäre STL, Normalen bleiben 0,0,0
+(`Buffer.alloc` nullt ohnehin, und Downstream wirft sie weg). Dateiname bekommt das
+GITTER angehängt, damit aufeinanderfolgende Versuche sich nicht überschreiben.
+Report nennt Dreiecke vorher→nachher, Reduktion % und die Vertex-Zahl — letztere ist
+das, worauf der Nutzer hinarbeitet (~40k), ohne jedes Mal stl2model laufen zu lassen.
+Pipeline end-to-end geprüft: skull.stl mit GITTER 64 → 60.694 Dreiecke / 3.034.784 Byte,
+Ausgabe wird von der eigenen Erkennung wieder als binär gelesen, stl2model liefert
+darauf **exakt** die vorhergesagten 26.704 vs. Abweichung 0.
+**Nicht gebaut:** kein ASCII-Ausgabeformat, keine Normalen-Berechnung, kein
+Überschreibschutz, keine Zielvorgabe-Automatik.
+
 ## 2026-08-08 — feat(tools): cutInHalf Step 2 — Vertex-Clustering
 **Was:** GITTER als einziger Hebel: Zellgröße = größte Bounding-Box-Ausdehnung /
 GITTER, jede Ecke per `floor((p−min)/zellgröße)` in eine Zelle, Repräsentant ist

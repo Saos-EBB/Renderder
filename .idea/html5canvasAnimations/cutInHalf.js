@@ -42,11 +42,19 @@ const STL_DATEI = "/home/saosgone/Schreibtisch/coding/stlFiles/skull.stl";
 // zwei bis drei Laeufe sind normal.
 const GITTER = 64;
 
+// Wohin die verkleinerte .stl geschrieben wird. Gleiche Regel wie oben:
+// absolut = eindeutig, relativ = vom Working directory aus.
+// Der Ordner wird angelegt falls es ihn nicht gibt. Der Dateiname entsteht aus
+// dem Original plus dem GITTER — so ueberschreibt der naechste Versuch den
+// vorigen nicht, und du siehst der Datei an, mit welchem Wert sie entstand.
+const AUSGABE_ORDNER = "/home/saosgone/Schreibtisch/coding/stlFiles";
+
 // ============================================================================
 //  ab hier nichts mehr eintragen
 // ============================================================================
 
 const fs = require("fs");
+const path = require("path");
 
 // ohne Encoding-Argument gibt readFileSync einen Buffer zurueck. Wichtig:
 // binaere .stl als utf8 zu lesen zerstoert die Floats (ungueltige Bytes werden
@@ -211,7 +219,42 @@ if (neu.length === 0) {
   );
 }
 
+// ---------- binaer schreiben ----------
+// 80 Byte Header, uint32 Dreieckszahl, dann 50 Byte je Dreieck:
+// Normale 3x float32, drei Ecken je 3x float32, 2 Byte Attribut. Little-Endian.
+// Buffer.alloc nullt den Speicher, deshalb bleiben Normale und Attribut
+// einfach 0 — stl2model wirft die Normalen ohnehin weg, und ein
+// Wireframe-Renderer braucht sie nicht.
+// Was der Header sagt, ist egal; entscheidend ist, dass 84 + n * 50 exakt der
+// Dateigroesse entspricht. Genau daran erkennt der Leser oben eine gueltige
+// Datei — und daran scheitert skullwithbrain.stl.
+const aus = Buffer.alloc(84 + neu.length * 50);
+aus.write(`cutInHalf GITTER=${GITTER}`, 0, 80, "ascii");
+aus.writeUInt32LE(neu.length, 80);
+let p = 84;
+for (const dreieck of neu) {
+  p += 12;                       // Normale ueberspringen, bleibt 0,0,0
+  for (const i of dreieck) {
+    const v = vertizes[i];
+    aus.writeFloatLE(v.x, p);
+    aus.writeFloatLE(v.y, p + 4);
+    aus.writeFloatLE(v.z, p + 8);
+    p += 12;
+  }
+  p += 2;                        // Attribut ueberspringen, bleibt 0
+}
+
+fs.mkdirSync(AUSGABE_ORDNER, { recursive: true });
+const basis = path.basename(STL_DATEI, path.extname(STL_DATEI));
+const ziel = path.join(AUSGABE_ORDNER, `${basis}_g${GITTER}.stl`);
+fs.writeFileSync(ziel, aus);
+
+// ---------- report ----------
+// Die Vertex-Zahl ist die Zahl auf die du hinarbeitest: rund 40.000 vertraegt
+// der Renderer. Sie steht hier, damit du am GITTER drehen kannst, ohne jedes
+// Mal stl2model laufen zu lassen.
 const weg = dreiecke.length - neu.length;
 console.log(`GITTER=${GITTER}, Zellgroesse ${zellgroesse.toFixed(4)}`);
 console.log(`Dreiecke ${dreiecke.length} -> ${neu.length}  (${(100 * weg / dreiecke.length).toFixed(1)} % weg)`);
 console.log(`eindeutige Vertizes: ${vertizes.length}  (belegte Zellen: ${zellen.size})`);
+console.log(`${ziel} — ${aus.length} Byte`);
