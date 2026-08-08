@@ -26,7 +26,7 @@ function magic({x, y, z}) {
         y: y / z,
     }
 }
-const FPS = 60;
+const FPS = 30;
 
 function translate_z({x, y, z}, dz) {
     return {x, y, z: z + dz};
@@ -103,11 +103,34 @@ let letzte = {x: 0, y: 0}
 // neu allozieren. Hier nur Winkel addieren, gedreht wird einmal pro Frame.
 let drehX = 0
 let drehY = 0
+// Zoom: rechte Taste halten + Mausrad. Multiplikativ statt fester Schritt —
+// bei dz=10 waere ein fester Wert kaum sichtbar, bei dz=0.5 ein Sprung.
+const ZOOM_SCHRITT = 1.1
+// magic() teilt durch z. Ganz auf 0 lassen wir dz nicht runter, sonst steckt
+// das Modell komplett hinter der Kamera und es bleibt nichts zu zeichnen.
+const DZ_MIN = 0.3
 leinwand.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return  // nur links dreht, rechts gehoert dem Zoom
     ziehen = true
     letzte = {x: e.clientX, y: e.clientY}
     e.preventDefault()          // verhindert Text-Markieren beim Ziehen
 })
+// ohne das poppt beim Rechtsklick das Browser-Menue auf — unter Linux schon
+// beim Druecken, nicht erst beim Loslassen
+leinwand.addEventListener("contextmenu", (e) => e.preventDefault())
+// passive: false ist Pflicht, sonst ignoriert der Browser das preventDefault()
+// und die Seite scrollt beim Zoomen mit
+leinwand.addEventListener("wheel", (e) => {
+    // e.buttons ist eine Bitmaske, Bit 2 = rechte Taste. Spart es, den
+    // Tastenzustand ueber mousedown/mouseup selbst mitzuzaehlen.
+    if (!(e.buttons & 2)) return
+    e.preventDefault()
+    // vorwaerts scrollen = deltaY negativ = Objekt weg von dir = groesseres dz.
+    // Nur das Vorzeichen zaehlt: deltaY ist je nach Maus, Browser und deltaMode
+    // mal 3, mal 100, bei Trackpads krumm.
+    dz = e.deltaY < 0 ? dz * ZOOM_SCHRITT : dz / ZOOM_SCHRITT
+    if (dz < DZ_MIN) dz = DZ_MIN
+}, {passive: false})
 // bewusst auf window, nicht auf leinwand: sonst bleibt das Modell haengen,
 // sobald du beim Ziehen aus der Leinwand rausfaehrst
 window.addEventListener("mouseup", () => { ziehen = false })
@@ -137,6 +160,9 @@ function frame() {
         // translate, z BLEIBT erhalten (magic wirft es sonst weg)
         const a = translate_z(mesh[ia], dz)
         const b = translate_z(mesh[ib], dz)
+        // hinter der Kamera: magic() wuerde die Kante sonst gespiegelt und
+        // riesig ins Bild werfen. Beim Reinzoomen faehrt das Modell da durch.
+        if (a.z <= 0.01 || b.z <= 0.01) continue
         // mittlere Tiefe der Kante -> Farbindex
         let t = (((a.z + b.z) / 2) - Z_NAH) / (Z_FERN - Z_NAH)
         t = Math.max(0, Math.min(1, t))

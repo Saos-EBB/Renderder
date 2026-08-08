@@ -1,5 +1,17 @@
 # Build Log
 
+## 2026-08-08 — feat(renderer): Zoom per Rechtsklick + Mausrad
+**Was:** `dz` per Mausrad bei gehaltener rechter Taste, multiplikativ (Faktor 1.1),
+weil ein fester Schritt bei dz=10 unsichtbar und bei dz=0.5 ein Sprung wäre.
+Dazu drei Dinge, ohne die es nicht funktioniert: `mousedown` reagiert jetzt nur
+noch auf die linke Taste (vorher startete auch Rechtsklick das Drehen),
+`contextmenu` wird abgefangen, und die Kanten-Schleife verwirft Kanten hinter der
+Kamera — sonst wirft `magic()` sie beim Reinzoomen gespiegelt und riesig ins Bild.
+`zFenster()` bleibt unangetastet: `dz` kürzt sich in der Shading-Formel weg.
+**Nicht gebaut:** kein DZ_MAX (Rauszoomen ist selbstkorrigierend), kein
+Zoom-auf-Mausposition, kein Trackpad-proportionaler Schritt — nur das Vorzeichen
+von `deltaY` zählt.
+
 ## 2026-08-08 — refactor(renderer): rotate_xz/xy/yz zusammengefasst, toten Code raus
 **Was:** Ponytail-Audit-Fund umgesetzt: die drei fast identischen `rotate_xz/xy/yz`
 zu einer `rotate(v, angle, [a,b])` zusammengefasst (Ebene als Achsenpaar statt
