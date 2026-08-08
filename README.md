@@ -1,7 +1,7 @@
 # Renderer
 
 Kleines Lernprojekt: ein simpler 3D-Wireframe-Renderer auf HTML5 Canvas, ohne
-Bibliothek — eigene Matrix-Mathe fürs Rotieren/Projizieren.
+Bibliothek.
 
 ## Struktur
 
