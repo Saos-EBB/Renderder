@@ -1,5 +1,13 @@
 # Build Log
 
+## 2026-08-09 — fix(renderer): Farbrampe entschärft, nahe Kanten wurden weiß
+**Was:** Die Rampe ging bis L 90 %. Bei S 85 % lesen die obersten Stufen als Weiß —
+`#d0e5fb` hat Minimalkanal 208 von 255 und nur 43 Buntheit —, und wo viele nahe Kanten
+übereinanderliegen, wurde daraus eine weiße Fläche. Jetzt `L = 75 − i·4`, also 75 % bis
+15 %. Hellste Stufe `#89bff5`: Minimalkanal 137, Buntheit 108, zweieinhalbmal so farbig.
+**Nicht gebaut:** keine nichtlineare Rampe, keine Änderung an Sättigung oder Farbton,
+keine Transparenz.
+
 ## 2026-08-09 — feat(tools): stl2model nimmt auch einen ganzen Ordner
 **Was:** Gleiche Änderung wie bei obj2model, damit beide Konverter sich gleich bedienen
 lassen. `STL_DATEI` → `STL_QUELLE`, darf Datei oder Ordner sein; Umwandlung steckt in

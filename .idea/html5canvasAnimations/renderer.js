@@ -45,26 +45,30 @@ function rotate(v, angle, [a, b]) {
 // --- Tiefen-Shading: Kanten nach Entfernung einfaerben (nah hell, fern dunkel)
 // Palette aendern = nur dieses Array; der Rest passt sich an SHADES.length an.
 // 16 Stufen aus HSL: Farbton 210, Saettigung 85 %, Helligkeit gleichmaessig von
-// 90 % (Index 0, nah) bis 18 % (Index 15, fern), also L = 90 - Index * 4.8.
+// 75 % (Index 0, nah) bis 15 % (Index 15, fern), also L = 75 - Index * 4.
+// Vorher ging die Rampe bis 90 % hoch. Bei der Saettigung lesen die obersten
+// Stufen aber als Weiss, und wo viele nahe Kanten uebereinanderliegen, wurde
+// daraus eine weisse Flaeche. Der Deckel liegt jetzt tiefer, die hellste Stufe
+// ist ein erkennbares Blau.
 // Einmal ausgerechnet und fest eingetragen — zur Laufzeit umzurechnen waere
 // Arbeit pro Frame fuer ein Ergebnis, das sich nie aendert.
 const SHADES = [
-    "#d0e5fb",
-    "#b9d9f9",
-    "#a3cdf8",
-    "#8cc1f6",
-    "#75b5f4",
-    "#5fa8f2",
-    "#489cf0",
-    "#3190ee",
-    "#1b84ec",
-    "#1277dd",
-    "#106bc6",
-    "#0e5faf",
-    "#0c5399",
-    "#0b4682",
-    "#093a6c",
-    "#072e55",
+    "#89bff5",
+    "#76b5f4",
+    "#63abf2",
+    "#50a1f1",
+    "#3e96ef",
+    "#2b8cee",
+    "#1882ec",
+    "#1278de",
+    "#106ecb",
+    "#0f63b8",
+    "#0d59a5",
+    "#0c4f92",
+    "#0a457f",
+    "#093b6d",
+    "#07305a",
+    "#062647",
 ]
 
 let dz = 2.5;  // wo start ??
@@ -73,7 +77,7 @@ let dz = 2.5;  // wo start ??
 // await, weil importModel jetzt dynamisch nachlaedt. Modell und mesh MUESSEN
 // vor den Maus-Listenern stehen: die feuern sonst waehrend des await und
 // greifen auf ein noch nicht initialisiertes mesh zu.
-const model = await importModel("craniumCut01");
+const model = await importModel("duoOG");
 const fs = model.fs
 //----------------------------------------------------
 
