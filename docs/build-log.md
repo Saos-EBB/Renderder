@@ -1,5 +1,18 @@
 # Build Log
 
+## 2026-08-09 — fix(repo): Startmodell zeigte auf eine Datei, die nicht im Repo liegt
+**Was:** `renderer.js` lud beim Start `duoOG` — die Datei ist aber 41 MB und war nie
+committet, ein frischer Clone crashte also sofort beim Modul-Import. Startmodell auf
+`skull` umgestellt (getrackt, 2,6 MB), `duoOG.js` in `.gitignore` zu den anderen
+lokalen Grossmodellen. Gleicher Zug: der Merge-Commit von gestern hatte beim
+Konfliktlösen 29 Zeilen README gefressen (Herkunft + kompletter Features-Abschnitt).
+Die 22 lokalen Commits sind linear auf `origin/master` rebased, der Konflikt diesmal
+zugunsten der lokalen Fassung aufgelöst — die Merge-Blase ist damit weg.
+**Nicht gebaut:** `duoOG` bleibt in `modelle.js` gelistet, genau wie die ebenfalls
+ignorierten `pochita128/256` — so bleibt es lokal ladbar. Wer klont und es auswaehlt,
+bekommt einen Import-Fehler; das ist bestehendes Verhalten, nicht neu. duoOG wurde
+nicht dezimiert.
+
 ## 2026-08-09 — feat(tools): Konverter schreiben nach modelle/ und tragen sich ein
 **Was:** `AUSGABE_ORDNER` zeigt bei beiden Konvertern jetzt direkt auf
 `html5canvasAnimations/modelle`, und nach dem Schreiben trägt `inListeEintragen()` den

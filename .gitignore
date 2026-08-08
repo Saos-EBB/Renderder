@@ -16,3 +16,7 @@ obj2model/
 .idea/html5canvasAnimations/modelle/pochita128.js
 .idea/html5canvasAnimations/modelle/pochita256.js
 .idea/html5canvasAnimations/modelle/forMax00.js
+
+# Undezimiertes Original, 41 MB — vier Mal groesser als das groesste getrackte
+# Modell und weit ueber dem, was der Renderer packt. Bleibt lokal.
+.idea/html5canvasAnimations/modelle/duoOG.js

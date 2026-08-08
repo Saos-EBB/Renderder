@@ -77,7 +77,7 @@ let dz = 2.5;  // wo start ??
 // await, weil importModel jetzt dynamisch nachlaedt. Modell und mesh MUESSEN
 // vor den Maus-Listenern stehen: die feuern sonst waehrend des await und
 // greifen auf ein noch nicht initialisiertes mesh zu.
-const model = await importModel("duoOG");
+const model = await importModel("skull");
 const fs = model.fs
 //----------------------------------------------------
 
