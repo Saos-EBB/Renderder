@@ -1,5 +1,19 @@
 # Build Log
 
+## 2026-08-08 — feat(tools): cutInHalf Step 2 — Vertex-Clustering
+**Was:** GITTER als einziger Hebel: Zellgröße = größte Bounding-Box-Ausdehnung /
+GITTER, jede Ecke per `floor((p−min)/zellgröße)` in eine Zelle, Repräsentant ist
+das Mittel aller Ecken darin (nicht die Zellmitte — das Mittel liegt auf der echten
+Oberfläche). Dreiecke, bei denen ≥2 Ecken in dieselbe Zelle fallen, werden verworfen;
+genau dieses Droppen ist die Reduktion. Bewusst keine Vor-Normalisierung: weil die
+Zellgröße aus der eigenen Ausdehnung kommt, ist GITTER einheitenunabhängig.
+Gemessen an skull.stl (1.303.784 Dreiecke): GITTER 64 → 26.704 Vertizes,
+128 → 105.915, 256 → 331.208. Monoton, wie es sein soll.
+**Nicht gebaut:** kein Ziel-/Verhältnis-Modus mit Binärsuche, keine Quadric-Metrik
+zur Repräsentantenwahl, keine Normalen-Neuberechnung, kein Randkanten-Schutz.
+Ausnahme vom YAGNI: Guard gegen Ausdehnung 0 und gegen "alle Dreiecke kollabiert" —
+beides würde sonst stumm Müll schreiben.
+
 ## 2026-08-08 — feat(tools): cutInHalf Step 1 — STL-Parser + Formaterkennung
 **Was:** Grundgerüst für den Dezimierer. Parser und Erkennung 1:1 aus `stl2model.js`
 übernommen statt geteilt — die beiden Skripte sind eigenständige WebStorm-Läufe

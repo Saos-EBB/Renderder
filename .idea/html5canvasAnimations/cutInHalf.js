@@ -30,6 +30,18 @@
 // Findet er nichts, meldet Node ENOENT mit dem Pfad den er gesucht hat.
 const STL_DATEI = "/home/saosgone/Schreibtisch/coding/stlFiles/skull.stl";
 
+// Zellen pro laengster Achse — DER Hebel. Die Zellgroesse ist die groesste
+// Bounding-Box-Ausdehnung geteilt durch diesen Wert, alle Ecken in derselben
+// Zelle werden zu einer.
+// Groesser = feiner = mehr Dreiecke. Kleiner = groeber = weniger.
+// Weil die Zellgroesse aus der eigenen Ausdehnung des Meshes kommt, bedeutet
+// GITTER=64 bei jedem Modell dasselbe, egal in welcher Einheit es vorliegt.
+// Es gibt KEINE Zielvorgabe: du drehst hier, liest im Log die Vertex-Zahl und
+// drehst nochmal. Ziel sind ungefaehr 40.000 — mehr vertraegt der Renderer
+// nicht. Zwischen GITTER und Vertex-Zahl liegt die Form der Oberflaeche,
+// zwei bis drei Laeufe sind normal.
+const GITTER = 64;
+
 // ============================================================================
 //  ab hier nichts mehr eintragen
 // ============================================================================
@@ -113,3 +125,93 @@ if (dreiecke.length === 0) {
 }
 
 console.log(`${format}, ${dreiecke.length} Dreiecke gelesen`);
+
+// ---------- gitter ----------
+// Bounding-Box ueber alle Ecken. Bewusst KEIN Zentrieren und KEIN Skalieren:
+// die Zellgroesse leitet sich aus der eigenen Ausdehnung des Meshes ab, damit
+// ist das Ergebnis von der Einheit der Datei unabhaengig. Groesse und
+// Ausrichtung fuers Rendern macht spaeter stl2model.
+const lo = [Infinity, Infinity, Infinity];
+const hi = [-Infinity, -Infinity, -Infinity];
+for (const d of dreiecke) {
+  for (const e of d) {
+    for (const k of [0, 1, 2]) {
+      if (e[k] < lo[k]) lo[k] = e[k];
+      if (e[k] > hi[k]) hi[k] = e[k];
+    }
+  }
+}
+const ausdehnung = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+if (ausdehnung === 0) {
+  throw new Error(`${STL_DATEI}: alle Ecken liegen auf einem Punkt, nichts zu clustern.`);
+}
+const zellgroesse = ausdehnung / GITTER;
+
+// In welche Zelle faellt eine Ecke? Die Ecke genau am oberen Rand landet
+// rechnerisch in Zelle GITTER statt GITTER-1. Stoert nicht: die Zellen stehen
+// in einer Map, nicht in einem Array fester Groesse.
+function schluessel(e) {
+  const ix = Math.floor((e[0] - lo[0]) / zellgroesse);
+  const iy = Math.floor((e[1] - lo[1]) / zellgroesse);
+  const iz = Math.floor((e[2] - lo[2]) / zellgroesse);
+  return `${ix},${iy},${iz}`;
+}
+
+// ---------- snappen ----------
+// Repraesentant einer Zelle ist das MITTEL aller Ecken die hineinfallen, nicht
+// die Zellmitte: das Mittel liegt auf der echten Oberflaeche, die Zellmitte
+// kann daneben im Leeren sitzen.
+const zellen = new Map();
+for (const d of dreiecke) {
+  for (const e of d) {
+    const key = schluessel(e);
+    let z = zellen.get(key);
+    if (z === undefined) {
+      z = {x: 0, y: 0, z: 0, n: 0, idx: -1};
+      zellen.set(key, z);
+    }
+    z.x += e[0];
+    z.y += e[1];
+    z.z += e[2];
+    z.n++;
+  }
+}
+for (const z of zellen.values()) {
+  z.x /= z.n;
+  z.y /= z.n;
+  z.z /= z.n;
+}
+
+// ---------- dreiecke neu, entartete raus ----------
+// Fallen zwei oder drei Ecken eines Dreiecks in dieselbe Zelle, ist es zu einer
+// Linie oder einem Punkt kollabiert und faellt weg. DAS ist die Reduktion —
+// im Gegensatz zu stl2model, wo entartete Faces stehenbleiben duerfen, weil es
+// dort ums Indizieren geht und nicht ums Verkleinern.
+// Vergleich ueber Objektidentitaet: dieselbe Zelle ist dasselbe Map-Objekt.
+const vertizes = [];   // Repraesentanten in Reihenfolge des ersten Auftretens
+const neu = [];        // Dreiecke als Index-Tripel
+for (const d of dreiecke) {
+  const za = zellen.get(schluessel(d[0]));
+  const zb = zellen.get(schluessel(d[1]));
+  const zc = zellen.get(schluessel(d[2]));
+  if (za === zb || zb === zc || za === zc) continue;
+  for (const z of [za, zb, zc]) {
+    if (z.idx < 0) {
+      z.idx = vertizes.length;
+      vertizes.push(z);
+    }
+  }
+  neu.push([za.idx, zb.idx, zc.idx]);
+}
+
+if (neu.length === 0) {
+  throw new Error(
+      `GITTER=${GITTER} ist zu grob — alle ${dreiecke.length} Dreiecke sind ` +
+      `kollabiert. Groesseren Wert eintragen.`
+  );
+}
+
+const weg = dreiecke.length - neu.length;
+console.log(`GITTER=${GITTER}, Zellgroesse ${zellgroesse.toFixed(4)}`);
+console.log(`Dreiecke ${dreiecke.length} -> ${neu.length}  (${(100 * weg / dreiecke.length).toFixed(1)} % weg)`);
+console.log(`eindeutige Vertizes: ${vertizes.length}  (belegte Zellen: ${zellen.size})`);
