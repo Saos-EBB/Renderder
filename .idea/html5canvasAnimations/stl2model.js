@@ -38,7 +38,15 @@ const STL_QUELLE = "/home/saosgone/Schreibtisch/coding/stlFiles/Duo Baldurs Gate
 // Wohin die fertige .js geschrieben wird. Gleiche Regel wie oben:
 // absolut = eindeutig, relativ = vom Working directory aus.
 // Der Ordner wird angelegt falls es ihn nicht gibt.
-const AUSGABE_ORDNER = "/home/saosgone/Schreibtisch/coding/obj2model";
+// Standard ist direkt der Modellordner des Renderers — dann entfaellt das
+// Herueberschieben von Hand.
+const AUSGABE_ORDNER = "/home/saosgone/Schreibtisch/coding/.idea/html5canvasAnimations/modelle";
+
+// Die Namensliste des Renderers. Jeder erzeugte Name wird dort eingetragen,
+// falls er noch fehlt — sonst kennt importModel das neue Modell nicht.
+// Muss zu AUSGABE_ORDNER passen: die Liste laedt "./modelle/<name>.js"
+// relativ zu sich selbst.
+const MODELLE_JS = "/home/saosgone/Schreibtisch/coding/.idea/html5canvasAnimations/modelle.js";
 
 // Name der Konstante in der erzeugten Datei UND ihr Dateiname.
 // Leer lassen ("") = wird aus dem .stl-Dateinamen abgeleitet.
@@ -105,6 +113,40 @@ function asciiLesen(text) {
     out.push([ecken[i], ecken[i + 1], ecken[i + 2]]);
   }
   return out;
+}
+
+// Dateiname -> Modellname. Leerzeichen werden zu _, wie gewuenscht. Alles
+// andere, was in einem JS-Bezeichner nicht vorkommen darf — Punkte, Klammern,
+// Striche — muss es allerdings auch, denn der Name steht in der erzeugten
+// Datei als "const <name> = {...}". Aus "F 011 - Dragon (X).stl" wird so
+// F_011_Dragon_X.
+function nameAus(datei) {
+  let name = path.basename(datei, path.extname(datei))
+      .replace(/[^a-zA-Z0-9_]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  // fuehrende Ziffer waere kein gueltiger JS-Bezeichner
+  if (/^[0-9]/.test(name)) name = "m" + name;
+  // bliebe nichts uebrig, schrieben wir "const  = {...}" — kaputtes JS
+  return name || "modell";
+}
+
+// Traegt den Namen in die Liste in modelle.js ein, falls er noch fehlt.
+// Ohne diesen Schritt liegt die .js zwar am richtigen Ort, importModel kennt
+// sie aber nicht. Rueckgabe: true wenn neu eingetragen.
+function inListeEintragen(name) {
+  const quelle = fs.readFileSync(MODELLE_JS, "utf8");
+  const ende = quelle.indexOf("];");
+  if (ende < 0) {
+    throw new Error(`${MODELLE_JS}: Liste "const models = [ ... ];" nicht gefunden.`);
+  }
+  const vorher = quelle.slice(0, ende);
+  if (vorher.includes(`"${name}"`)) return false;
+  // fehlendes Komma hinter dem letzten Eintrag wuerde die Liste zerlegen
+  const getrimmt = vorher.trimEnd();
+  const komma = getrimmt.endsWith(",") || getrimmt.endsWith("[") ? "" : ",";
+  fs.writeFileSync(MODELLE_JS, `${getrimmt}${komma}\n    "${name}",\n${quelle.slice(ende)}`);
+  return true;
 }
 
 // Wandelt genau eine .stl um. nameVorgabe leer = Name aus dem Dateinamen.
@@ -209,12 +251,7 @@ for (const d of dreiecke) {
 }
 
 // ---------- schreiben ----------
-let name = nameVorgabe;
-if (!name) {
-  name = path.basename(stlDatei, path.extname(stlDatei)).replace(/[^a-zA-Z0-9]/g, "_");
-  // fuehrende Ziffer waere kein gueltiger JS-Bezeichner
-  if (/^[0-9]/.test(name)) name = "m" + name;
-}
+const name = nameVorgabe || nameAus(stlDatei);
 
 const body =
     `const ${name} = {\n` +
@@ -228,8 +265,10 @@ fs.mkdirSync(AUSGABE_ORDNER, { recursive: true });
 const ziel = path.join(AUSGABE_ORDNER, name + ".js");
 fs.writeFileSync(ziel, body);
 
+const neu = inListeEintragen(name);
 console.log(`${format}, ${dreiecke.length} Dreiecke = ${dreiecke.length * 3} rohe Ecken -> ${out.length} nach dem Welden`);
-console.log(`${ziel} — ${out.length} vs, ${faces.length} fs`);
+console.log(`${ziel} — ${out.length} vs, ${faces.length} fs` +
+    (neu ? `, als "${name}" eingetragen` : `, "${name}" stand schon in der Liste`));
 }
 
 // ---------- einzelne datei oder ganzer ordner? ----------

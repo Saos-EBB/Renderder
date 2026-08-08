@@ -38,8 +38,8 @@ Modell wird, das der Renderer verkraftet.
 - `.idea/html5canvasAnimations/modelle/` — Vertex/Face-Daten der 3D-Modelle
 - `.idea/html5canvasAnimations/index.html` — Einstiegspunkt
 
-Modell wechseln: Name in die Liste in `modelle.js` eintragen, in `renderer.js`
-bei `importModel(...)` einsetzen.
+Modell wechseln: Name in `renderer.js` bei `importModel(...)` einsetzen. In die
+Liste eingetragen haben sich die Konverter schon selbst.
 
 ## Werkzeuge
 
@@ -59,6 +59,11 @@ Zwanzigfache, deshalb die Kette:
 ```
 grosse.stl  →  cutInHalf.js  →  kleine.stl  →  stl2model.js  →  modell.js
 ```
+
+`obj2model` und `stl2model` nehmen eine einzelne Datei oder einen ganzen Ordner,
+schreiben nach `modelle/` und tragen den Namen selbst in `modelle.js` ein. Der
+Name kommt aus dem Dateinamen, Leerzeichen und alles andere, was in einem
+JS-Bezeichner nicht vorkommen darf, wird zu `_`.
 
 `cutInHalf` hat einen einzigen Hebel: `GITTER`, die Zellenzahl entlang der
 längsten Achse. Größer heißt feiner heißt mehr Dreiecke. Es gibt keine

@@ -1,5 +1,19 @@
 # Build Log
 
+## 2026-08-09 — feat(tools): Konverter schreiben nach modelle/ und tragen sich ein
+**Was:** `AUSGABE_ORDNER` zeigt bei beiden Konvertern jetzt direkt auf
+`html5canvasAnimations/modelle`, und nach dem Schreiben trägt `inListeEintragen()` den
+Namen in `modelle.js` ein, falls er fehlt — damit entfällt sowohl das Verschieben von
+Hand als auch das Nachtragen. Neuer Konfigwert `MODELLE_JS`; bewusst explizit statt aus
+`AUSGABE_ORDNER` abgeleitet, weil das Layout sich gerade erst geändert hat.
+Namensregel wie gewünscht Dateiname mit `_` statt Leerzeichen — **aber** auch Punkte,
+Klammern und Striche werden zu `_`, sonst ist `const <name> = {...}` kein gültiges JS.
+Geprüft: Einfügen verträgt fehlendes Komma und leere Liste, zweiter Lauf dupliziert
+nicht, End-to-End gegen eine Kopie der echten `modelle.js`.
+**Nicht gebaut:** kein gemeinsames Modul für die beiden Kopien von `nameAus` und
+`inListeEintragen` (die Skripte bleiben eigenständig, wie schon beim STL-Parser), kein
+Entfernen von Namen, keine Sortierung, keine Rückfrage beim Überschreiben.
+
 ## 2026-08-09 — refactor(modelle): Namensliste eine Ebene über die Daten
 **Was:** `modelle/modelle.js` → `modelle.js`. Das Verzeichnis steht damit neben dem
 Ordner, den es beschreibt, statt darin. Zwei Pfade drehen sich um: `renderer.js`
