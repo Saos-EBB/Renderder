@@ -1,5 +1,16 @@
 # Build Log
 
+## 2026-08-08 — docs(readme): Herkunft, Features und Werkzeugkette
+**Was:** README stand noch auf dem Stand vom Repo-Init und beschrieb weder die
+Maussteuerung noch die drei Konverter. Jetzt drin: Attribution an Tsoding (Basis
+kam aus seinem Video über die „magic formula", der Rest ist selbst gebaut), die
+vier Features, und die Kette `grosse.stl → cutInHalf → stl2model → modell.js`
+mit der 40k-Vertex-Decke als Begründung. Nebenbei den abgeschnittenen Satz
+in Zeile 3 repariert, der seit einer versehentlichen Kürzung dort stand.
+**Nicht gebaut:** kein Screenshot, keine Auflistung der einzelnen Config-Werte
+(die stehen kommentiert in den Skripten), kein Lizenz- oder Beitragsabschnitt.
+Kein Link zum Tsoding-Video — die URL kenne ich nicht, nur der Name steht drin.
+
 ## 2026-08-08 — feat(tools): cutInHalf Step 3 — Binär-STL-Writer + Report
 **Was:** Schreibt die geclusterten Dreiecke als binäre STL, Normalen bleiben 0,0,0
 (`Buffer.alloc` nullt ohnehin, und Downstream wirft sie weg). Dateiname bekommt das
