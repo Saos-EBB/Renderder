@@ -5,6 +5,14 @@ Skillz/
 # Quell-Meshes und obj2model-Ausgabe: gross und binaer, die fertigen
 # Modelle liegen als .js in .idea/html5canvasAnimations/modelle/
 stlFiles/
+cutStlFiles/
 objFiles/
 .objFiles/
 obj2model/
+
+# Dezimier-Zwischenstufen: beim Suchen nach dem richtigen GITTER entstehen
+# mehrere Varianten desselben Modells, gerendert wird am Ende genau eine.
+# Explizit aufgezaehlt, weil den Namen nicht anzusehen ist welche gemeint sind.
+.idea/html5canvasAnimations/modelle/pochita128.js
+.idea/html5canvasAnimations/modelle/pochita256.js
+.idea/html5canvasAnimations/modelle/forMax00.js

@@ -1,5 +1,16 @@
 # Build Log
 
+## 2026-08-09 — feat(modelle): sieben neue Modelle, Zwischenstufen ignoriert
+**Was:** Die Namensliste nannte zehn Modelle, deren Dateien nicht im Repo lagen — ein
+frischer Clone wäre beim Auswählen in einen 404 gelaufen. Sieben davon sind jetzt drin
+(~7 MB): forMax01, craniumCut01, pochita10/30/64, klo, cat. Die drei anderen —
+pochita128, pochita256, forMax00, zusammen 15 MB — sind Zwischenstufen aus der Suche
+nach dem richtigen GITTER und fliegen aus Liste und Repo. Dazu `cutStlFiles/` in die
+.gitignore, gleiche Kategorie wie `stlFiles/`. Geprüft: alle 18 Listeneinträge haben
+eine Datei, und die einzigen Dateien ohne Eintrag sind die drei ignorierten.
+**Nicht gebaut:** kein Namensschema, an dem sich Zwischenstufen automatisch erkennen
+ließen — die drei stehen explizit in der .gitignore, weil es keine Konvention gibt.
+
 ## 2026-08-09 — delete(modelle): cube
 **Was:** `cube.js` raus, der Eintrag in der Namensliste war schon weg. Das Würfelchen
 war das Testmodell vom ersten Tag, seit es echte Meshes gibt ohne Zweck. Die Löschung
