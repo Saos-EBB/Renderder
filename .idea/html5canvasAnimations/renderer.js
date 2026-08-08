@@ -164,14 +164,18 @@ let letzte = {x: 0, y: 0}
 // neu allozieren. Hier nur Winkel addieren, gedreht wird einmal pro Frame.
 let drehX = 0
 let drehY = 0
-// Zoom: rechte Taste halten + Mausrad. Multiplikativ statt fester Schritt —
-// bei dz=10 waere ein fester Wert kaum sichtbar, bei dz=0.5 ein Sprung.
+// Zoom: Mausrad ohne Taste. Multiplikativ statt fester Schritt — bei dz=10
+// waere ein fester Wert kaum sichtbar, bei dz=0.5 ein Sprung.
 const ZOOM_SCHRITT = 1.1
+// aufgelaufene Radschritte fuer die Schnittebene. Wie bei der Drehung: das Rad
+// feuert schneller als Frames kommen, und jede Aenderung baut die Kantenliste
+// neu — bei skull sind das 40728 Flaechen. Also sammeln und einmal pro Frame.
+let cutDelta = 0
 // magic() teilt durch z. Ganz auf 0 lassen wir dz nicht runter, sonst steckt
 // das Modell komplett hinter der Kamera und es bleibt nichts zu zeichnen.
 const DZ_MIN = 0.3
 leinwand.addEventListener("mousedown", (e) => {
-    if (e.button !== 0) return  // nur links dreht, rechts gehoert dem Zoom
+    if (e.button !== 0) return  // nur links dreht, rechts gehoert dem Schnitt
     ziehen = true
     letzte = {x: e.clientX, y: e.clientY}
     e.preventDefault()          // verhindert Text-Markieren beim Ziehen
@@ -182,24 +186,22 @@ leinwand.addEventListener("contextmenu", (e) => e.preventDefault())
 // passive: false ist Pflicht, sonst ignoriert der Browser das preventDefault()
 // und die Seite scrollt beim Zoomen mit
 leinwand.addEventListener("wheel", (e) => {
+    e.preventDefault()
+    // Nur das Vorzeichen von deltaY zaehlt, nie der Betrag: der ist je nach
+    // Maus, Browser und deltaMode mal 3, mal 100, bei Trackpads krumm.
+    // Vorwaerts scrollen (deltaY negativ) schiebt weg bzw. hinein.
+    //
     // e.buttons ist eine Bitmaske, Bit 2 = rechte Taste. Spart es, den
     // Tastenzustand ueber mousedown/mouseup selbst mitzuzaehlen.
-    if (!(e.buttons & 2)) return
-    e.preventDefault()
-    // vorwaerts scrollen = deltaY negativ = Objekt weg von dir = groesseres dz.
-    // Nur das Vorzeichen zaehlt: deltaY ist je nach Maus, Browser und deltaMode
-    // mal 3, mal 100, bei Trackpads krumm.
+    if (e.buttons & 2) {
+        // rechte Taste gehalten: Schnittebene faehrt ins Modell
+        cutDelta += e.deltaY < 0 ? -CUT_SCHRITT : CUT_SCHRITT
+        return
+    }
+    // ohne Taste: Zoom
     dz = e.deltaY < 0 ? dz * ZOOM_SCHRITT : dz / ZOOM_SCHRITT
     if (dz < DZ_MIN) dz = DZ_MIN
 }, {passive: false})
-// "," und "." fahren die Schnittebene durch das Modell. Die Kantenliste muss
-// dabei neu gebaut werden — das kostet einmal pro Tastendruck, nicht pro Frame.
-window.addEventListener("keydown", (e) => {
-    if (e.key === ",") CUT -= CUT_SCHRITT
-    else if (e.key === ".") CUT += CUT_SCHRITT
-    else return
-    kantenBauen()
-})
 // bewusst auf window, nicht auf leinwand: sonst bleibt das Modell haengen,
 // sobald du beim Ziehen aus der Leinwand rausfaehrst
 window.addEventListener("mouseup", () => { ziehen = false })
@@ -220,6 +222,13 @@ function frame() {
         drehX = 0
         drehY = 0
         zFenster()
+    }
+
+    // Schnittebene verschoben: Kantenliste einmal neu, nicht pro Rad-Event
+    if (cutDelta !== 0) {
+        CUT += cutDelta
+        cutDelta = 0
+        kantenBauen()
     }
 
     //render lines + tiefen-shading

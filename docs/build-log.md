@@ -1,5 +1,17 @@
 # Build Log
 
+## 2026-08-09 — refactor(renderer): Mausrad neu belegt — nackt zoomt, rechts schneidet
+**Was:** Der Schnitt ist eine kontinuierliche Bewegung, dafür taugt das Rad besser als
+16–24 Tastendrücke. Also: nacktes Rad = Zoom (Standardgeste, war ungenutzt), rechte
+Taste + Rad = Schnittebene. `,` und `.` ersatzlos raus. Die Radschritte werden wie die
+Drehwinkel aufgesammelt und einmal pro Frame angewandt — jede `CUT`-Änderung baut die
+Kantenliste neu, bei skull 40.728 Flächen, und das Rad feuert schneller als Frames
+kommen. Geprüft: nacktes Rad lässt `CUT` unberührt und umgekehrt, 8× rein + 8× raus
+landet exakt am Start, Sammeln ist float-genau identisch mit Einzelanwendung.
+README-Features auf die neue Belegung nachgezogen.
+**Nicht gebaut:** kein Shift-Modifier, kein proportionaler Schritt aus dem
+`deltaY`-Betrag, keine Tastensteuerung parallel zum Rad.
+
 ## 2026-08-09 — fix(renderer): Cutaway startet ungeschnitten
 **Was:** `CUT` startete auf 0, also war beim Laden sofort eine Hälfte weg — sah nach
 kaputtem Modell aus. Der Startwert wird jetzt aus dem Modell abgeleitet: größter
