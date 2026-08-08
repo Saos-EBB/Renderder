@@ -1,5 +1,5 @@
 import {importModel} from "./modelle/modelle.js";
-leinwand.width = 1200
+leinwand.width = 1300
 leinwand.height = 1200
 const BACKGROUND = '#000000'
 const ctx = leinwand.getContext("2d")
@@ -44,7 +44,28 @@ function rotate(v, angle, [a, b]) {
 
 // --- Tiefen-Shading: Kanten nach Entfernung einfaerben (nah hell, fern dunkel)
 // Palette aendern = nur dieses Array; der Rest passt sich an SHADES.length an.
-const SHADES = ["#7395ec", "#5585ff", "rgb(53 95 201 / 1)", "rgb(23 53 131 / 1)"]
+// 16 Stufen aus HSL: Farbton 210, Saettigung 85 %, Helligkeit gleichmaessig von
+// 90 % (Index 0, nah) bis 18 % (Index 15, fern), also L = 90 - Index * 4.8.
+// Einmal ausgerechnet und fest eingetragen — zur Laufzeit umzurechnen waere
+// Arbeit pro Frame fuer ein Ergebnis, das sich nie aendert.
+const SHADES = [
+    "#d0e5fb",
+    "#b9d9f9",
+    "#a3cdf8",
+    "#8cc1f6",
+    "#75b5f4",
+    "#5fa8f2",
+    "#489cf0",
+    "#3190ee",
+    "#1b84ec",
+    "#1277dd",
+    "#106bc6",
+    "#0e5faf",
+    "#0c5399",
+    "#0b4682",
+    "#093a6c",
+    "#072e55",
+]
 
 let dz = 2.5;  // wo start ??
 
@@ -52,7 +73,7 @@ let dz = 2.5;  // wo start ??
 // await, weil importModel jetzt dynamisch nachlaedt. Modell und mesh MUESSEN
 // vor den Maus-Listenern stehen: die feuern sonst waehrend des await und
 // greifen auf ein noch nicht initialisiertes mesh zu.
-const model = await importModel("skull")
+const model = await importModel("pochita30");
 const fs = model.fs
 //----------------------------------------------------
 

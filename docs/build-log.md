@@ -1,5 +1,15 @@
 # Build Log
 
+## 2026-08-09 — feat(renderer): Farbtabelle auf 16 Blautöne
+**Was:** `SHADES` von 4 auf 16 Einträge. Werte aus HSL 210° / 85 % / L = 90 − i·4.8,
+einmal ausgerechnet und statisch eingetragen — zur Laufzeit umzurechnen wäre Arbeit
+pro Frame für ein Ergebnis, das sich nie ändert. Die alte Tabelle mischte zwei
+Formate (zwei Hex, zwei `rgb(r g b / a)`), jetzt durchgehend `#rrggbb`. Die
+Index-Berechnung blieb unangetastet, sie zieht `SHADES.length` schon selbst.
+Gemessen: pochita30 und skull belegen beide alle 16 Stufen, Verteilung glatt.
+**Nicht gebaut:** keine Laufzeit-HSL-Funktion, keine Palette-Umschaltung, kein
+Farbwähler.
+
 ## 2026-08-08 — docs(readme): Herkunft, Features und Werkzeugkette
 **Was:** README stand noch auf dem Stand vom Repo-Init und beschrieb weder die
 Maussteuerung noch die drei Konverter. Jetzt drin: Attribution an Tsoding (Basis
