@@ -44,13 +44,13 @@ window.addEventListener("mouseup", () => { ziehen = false })
 window.addEventListener("mousemove", (e) => {
     if (!ziehen) return
     const dx = (e.clientX - letzte.x) * 0.01   // horizontal
-    const dy = (e.clientY - letzte.y) * 0.01   // vertikal
+    const dy = (letzte.y - e.clientY) * 0.01   // vertikal (invertiert)
     // um die BILDSCHIRM-Achsen drehen: horizontal -> Y, vertikal -> X
     mesh = mesh.map(v => rotate_yz(rotate_xz(v, dx), dy))
     letzte = {x: e.clientX, y: e.clientY}
 })
 // 'Modelle ' ----------------------------------------
-const model = importModel("car")
+const model = importModel("skull")
 const vs = model.vs
 const fs = model.fs
 //----------------------------------------------------
