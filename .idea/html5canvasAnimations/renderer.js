@@ -86,8 +86,29 @@ let mesh = model.vs.map(v => rotate(rotate(v, 5.5, ["x", "z"]), 4.678, ["x", "y"
 // Rotation — die Ebene dreht dadurch mit dem Modell mit statt im Raum zu
 // stehen. Das ist gewollt und spart das Zuruecktransformieren.
 const ACHSE = "z"          // "x" | "y" | "z" — je nach Ausrichtung des Modells
-let CUT = 0                // Modellkoordinate, sinnvoll etwa -1.2 .. 1.2
 const CUT_SCHRITT = 0.05
+
+// Schwerpunkt einer Flaeche auf der Schnittachse, auf den unrotierten
+// Koordinaten. Gemittelt ueber f.length, nicht ueber 3: aus .obj kommen auch
+// Vierecke (skull hat beides), aus .stl nur Dreiecke.
+function schwerpunkt(f) {
+    let s = 0
+    for (const i of f) s += model.vs[i][ACHSE]
+    return s / f.length
+}
+
+// Startwert so, dass beim Laden NICHTS abgeschnitten ist: knapp ueber dem
+// groessten Schwerpunkt, den es auf dieser Achse ueberhaupt gibt. Geschnitten
+// wird erst, wenn du mit "," hineinfaehrst.
+// Aus dem Modell abgeleitet statt fest eingetragen, weil die Modelle die Achse
+// unterschiedlich weit ausfuellen — pochita30 reicht auf z nur bis rund 0.7.
+// Ein fester Wert waere dort erst nach einem Dutzend Tastendruecken wirksam.
+let CUT = -Infinity
+for (const f of fs) {
+    const m = schwerpunkt(f)
+    if (m > CUT) CUT = m
+}
+CUT += CUT_SCHRITT
 
 // Eindeutige Kantenliste: fs aendert sich nie, und benachbarte Faces teilen
 // sich jede Kante — ohne das hier zeichnen wir jede Kante doppelt (bei skull
@@ -103,11 +124,7 @@ function kantenBauen() {
     kanten = []
     const gesehen = new Set()
     for (const f of fs) {
-        // Schwerpunkt auf der Schnittachse. Ueber f.length, nicht ueber 3:
-        // aus .obj kommen auch Vierecke, aus .stl nur Dreiecke.
-        let s = 0
-        for (const i of f) s += model.vs[i][ACHSE]
-        if (s / f.length > CUT) continue
+        if (schwerpunkt(f) > CUT) continue
         for (let i = 0; i < f.length; i++) {
             const a = f[i]
             const b = f[(i + 1) % f.length]

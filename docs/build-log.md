@@ -1,5 +1,17 @@
 # Build Log
 
+## 2026-08-09 — fix(renderer): Cutaway startet ungeschnitten
+**Was:** `CUT` startete auf 0, also war beim Laden sofort eine Hälfte weg — sah nach
+kaputtem Modell aus. Der Startwert wird jetzt aus dem Modell abgeleitet: größter
+Flächenschwerpunkt auf der Achse plus ein Schritt. Nicht fest eingetragen, weil die
+Modelle die Achse verschieden weit ausfüllen (cat bis 0,74, klo bis 1,20) — ein fester
+Wert hieße bei flachen Modellen ein Dutzend Tastendrücke, bevor überhaupt etwas
+passiert. Die Schwerpunktrechnung ist dabei in `schwerpunkt(f)` gewandert, sie wird
+jetzt an zwei Stellen gebraucht.
+Geprüft an pochita30, skull, cat, klo: beim Laden je 100 % der Kanten, erster Schnitt
+nach 2× `,`.
+**Nicht gebaut:** kein Clamping nach oben, keine Reset-Taste.
+
 ## 2026-08-09 — feat(renderer): Cutaway per Schnittebene
 **Was:** Achsen-ausgerichtete Schnittebene (`ACHSE`, `CUT`), die eine Hälfte weglässt,
 damit man ins Modell sieht. `,` und `.` fahren den Schnitt durch. Der Test läuft auf
