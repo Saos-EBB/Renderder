@@ -182,15 +182,27 @@ let cutDelta = 0
 // magic() teilt durch z. Ganz auf 0 lassen wir dz nicht runter, sonst steckt
 // das Modell komplett hinter der Kamera und es bleibt nichts zu zeichnen.
 const DZ_MIN = 0.3
+// Schnittachse x -> y -> z weiterschalten. Danach ist wieder alles sichtbar:
+// die Achsen sind unterschiedlich weit ausgedehnt, ein uebernommener CUT wuerde
+// auf der neuen Achse alles oder nichts wegschneiden.
+function achseWechseln() {
+    ACHSE = ACHSEN[(ACHSEN.indexOf(ACHSE) + 1) % ACHSEN.length]
+    cutZuruecksetzen()
+    kantenBauen()
+}
+// Doppelt belegt, Daumentaste und Tastatur, und zwar nicht aus Bequemlichkeit:
+// WebStorms eingebaute Vorschau laeuft auf JCEF und reicht die Daumentasten
+// nicht bis zur Seite durch. In Brave arbeitet die Maustaste, im Preview "a".
+window.addEventListener("keydown", (e) => {
+    if (e.key === "a" || e.key === "A") achseWechseln()
+})
 leinwand.addEventListener("mousedown", (e) => {
-    // Daumentaste schaltet die Schnittachse x -> y -> z weiter. In der
-    // DOM-Zaehlung ist das button 3; die Maus selbst nennt sie meist BT4, weil
-    // sie ab 1 zaehlt und die Radklicks mitzaehlt.
+    // Daumentaste schaltet die Schnittachse weiter. In der DOM-Zaehlung ist das
+    // button 3; die Maus selbst nennt sie meist BT4, weil sie ab 1 zaehlt und
+    // die Radklicks mitzaehlt.
     if (e.button === 3) {
         e.preventDefault()      // sonst navigiert der Browser damit zurueck
-        ACHSE = ACHSEN[(ACHSEN.indexOf(ACHSE) + 1) % ACHSEN.length]
-        cutZuruecksetzen()
-        kantenBauen()
+        achseWechseln()
         return
     }
     if (e.button !== 0) return  // nur links dreht, rechts gehoert dem Schnitt

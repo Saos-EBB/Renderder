@@ -20,8 +20,9 @@ Modell wird, das der Renderer verkraftet.
   Kanten hinter der Kamera werden verworfen.
 - **Cutaway** — rechte Maustaste halten und scrollen fährt eine Schnittebene
   durchs Modell, sodass man hineinsieht. Vorwärts schneidet tiefer. Die
-  Daumentaste (BT4) schaltet die Schnittachse x → y → z weiter und setzt den
-  Schnitt dabei zurück. Die Ebene liegt in Modellkoordinaten und dreht mit.
+  Daumentaste (BT4) oder die Taste `a` schaltet die Schnittachse x → y → z
+  weiter und setzt den Schnitt dabei zurück. Doppelt belegt, weil WebStorms
+  eingebaute Vorschau die Daumentasten nicht an die Seite durchreicht. Die Ebene liegt in Modellkoordinaten und dreht mit.
   Grob nach Flächen-Schwerpunkt: die Schnittkante ist gezackt, das Innere
   liegt hohl frei.
 - **Tiefen-Shading** — Kanten werden in 16 Stufen nach Entfernung eingefärbt,

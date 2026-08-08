@@ -1,5 +1,13 @@
 # Build Log
 
+## 2026-08-09 — feat(renderer): Achsenwechsel auch auf Taste `a`
+**Was:** Die Daumentaste kommt in WebStorms eingebauter Vorschau nicht an — erst fängt
+das Standard-Keymap `Button4` für *Navigate Back* ab, und nach dem Entfernen reicht
+JCEF sie trotzdem nicht an die Seite durch. Der Achsenwechsel liegt deshalb zusätzlich
+auf `a`; die Schaltlogik ist nach `achseWechseln()` gewandert, weil sie jetzt an zwei
+Stellen hängt. Die Maustaste bleibt, in Brave funktioniert sie. Details in `errors.md`.
+**Nicht gebaut:** keine Umbelegung der Taste über eine Konstante, keine Rückwärts-Taste.
+
 ## 2026-08-09 — feat(renderer): Daumentaste schaltet die Schnittachse
 **Was:** BT4 (DOM `button === 3`) schaltet `ACHSE` x → y → z weiter. `ACHSE` musste
 dafür von `const` auf `let`, und die CUT-Initialisierung ist zu `cutZuruecksetzen()`
