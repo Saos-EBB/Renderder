@@ -1,5 +1,12 @@
 # Build Log
 
+## 2026-08-09 — delete(modelle): cube
+**Was:** `cube.js` raus, der Eintrag in der Namensliste war schon weg. Das Würfelchen
+war das Testmodell vom ersten Tag, seit es echte Meshes gibt ohne Zweck. Die Löschung
+war versehentlich im vorigen Commit gelandet — siehe `errors.md`; dieser Commit trägt
+sie jetzt allein und benannt.
+**Nicht gebaut:** —
+
 ## 2026-08-09 — feat(renderer): Farbtabelle auf 16 Blautöne
 **Was:** `SHADES` von 4 auf 16 Einträge. Werte aus HSL 210° / 85 % / L = 90 − i·4.8,
 einmal ausgerechnet und statisch eingetragen — zur Laufzeit umzurechnen wäre Arbeit

@@ -1,7 +1,6 @@
 // Nur die Namen, keine statischen Imports: sonst laedt der Browser beim
 // Seitenaufruf ALLE Modelle (~19 MB, dick.js allein 9,5 MB), um eins zu zeigen.
 const models = [
-    "cube",
     "beetle",
     "teapot",
     "car",
@@ -13,6 +12,16 @@ const models = [
     "stoneman",
     "statue00",
     "totempole",
+    "forMax00",
+    "forMax01",
+    "craniumCut01",
+    "pochita10",
+    "pochita30",
+    "pochita64",
+    "pochita128",
+    "pochita256",
+    "klo",
+    "cat",
 ];
 
 export async function importModel(name) {
