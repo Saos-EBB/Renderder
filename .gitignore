@@ -1,3 +1,10 @@
 node_modules/
 .claude/
 Skillz/
+
+# Quell-Meshes und obj2model-Ausgabe: gross und binaer, die fertigen
+# Modelle liegen als .js in .idea/html5canvasAnimations/modelle/
+stlFiles/
+objFiles/
+.objFiles/
+obj2model/
