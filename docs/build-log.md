@@ -1,5 +1,18 @@
 # Build Log
 
+## 2026-08-09 — feat(renderer): Daumentaste schaltet die Schnittachse
+**Was:** BT4 (DOM `button === 3`) schaltet `ACHSE` x → y → z weiter. `ACHSE` musste
+dafür von `const` auf `let`, und die CUT-Initialisierung ist zu `cutZuruecksetzen()`
+geworden, weil sie bei jedem Wechsel erneut laufen muss: die Achsen sind
+unterschiedlich weit ausgedehnt. Bei craniumCut01 liegt der Startwert je Achse bei
+0,850 / 0,800 / 1,245 — ein übernommener Wert hätte nach dem Wechsel von y nach x neun
+Radschritte lang gar nichts bewirkt. Geprüft an craniumCut01 und pochita30: jede Achse
+startet bei 100 % sichtbar, erster Schnitt immer nach 2 Radschritten, Zyklus schließt.
+**Nicht gebaut:** BT5 bleibt frei, keine Anzeige der aktiven Achse auf der Leinwand,
+kein Rückwärts-Durchschalten. Ausnahme vom YAGNI: ein `auxclick`-Handler unterdrückt
+zusätzlich die Zurück-Navigation — ein Seitenwechsel würde Drehung, Zoom und Schnitt
+verlieren, und ob `preventDefault` auf `mousedown` allein reicht, ist browserabhängig.
+
 ## 2026-08-09 — refactor(renderer): Mausrad neu belegt — nackt zoomt, rechts schneidet
 **Was:** Der Schnitt ist eine kontinuierliche Bewegung, dafür taugt das Rad besser als
 16–24 Tastendrücke. Also: nacktes Rad = Zoom (Standardgeste, war ungenutzt), rechte

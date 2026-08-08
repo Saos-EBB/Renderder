@@ -19,9 +19,11 @@ Modell wird, das der Renderer verkraftet.
 - **Zoom** — Mausrad. Vorwärts schiebt das Objekt weg, rückwärts holt es heran.
   Kanten hinter der Kamera werden verworfen.
 - **Cutaway** — rechte Maustaste halten und scrollen fährt eine Schnittebene
-  durchs Modell, sodass man hineinsieht. Vorwärts schneidet tiefer. Die Ebene
-  liegt in Modellkoordinaten und dreht mit. Grob nach Flächen-Schwerpunkt: die
-  Schnittkante ist gezackt, das Innere liegt hohl frei.
+  durchs Modell, sodass man hineinsieht. Vorwärts schneidet tiefer. Die
+  Daumentaste (BT4) schaltet die Schnittachse x → y → z weiter und setzt den
+  Schnitt dabei zurück. Die Ebene liegt in Modellkoordinaten und dreht mit.
+  Grob nach Flächen-Schwerpunkt: die Schnittkante ist gezackt, das Innere
+  liegt hohl frei.
 - **Tiefen-Shading** — Kanten werden in 16 Stufen nach Entfernung eingefärbt,
   nah hell bis fern dunkel. Das z-Fenster kommt aus der echten Ausdehnung des
   Meshes.

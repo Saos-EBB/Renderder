@@ -73,7 +73,7 @@ let dz = 2.5;  // wo start ??
 // await, weil importModel jetzt dynamisch nachlaedt. Modell und mesh MUESSEN
 // vor den Maus-Listenern stehen: die feuern sonst waehrend des await und
 // greifen auf ein noch nicht initialisiertes mesh zu.
-const model = await importModel("pochita30");
+const model = await importModel("craniumCut01");
 const fs = model.fs
 //----------------------------------------------------
 
@@ -85,7 +85,9 @@ let mesh = model.vs.map(v => rotate(rotate(v, 5.5, ["x", "z"]), 4.678, ["x", "y"
 // hineinsieht. Getestet wird auf den ROHEN Modellkoordinaten, also vor der
 // Rotation — die Ebene dreht dadurch mit dem Modell mit statt im Raum zu
 // stehen. Das ist gewollt und spart das Zuruecktransformieren.
-const ACHSE = "z"          // "x" | "y" | "z" — je nach Ausrichtung des Modells
+// Die Achse wird zur Laufzeit per Seitentaste durchgeschaltet, deshalb let.
+const ACHSEN = ["x", "y", "z"]
+let ACHSE = "z"            // Startachse — je nach Ausrichtung des Modells
 const CUT_SCHRITT = 0.05
 
 // Schwerpunkt einer Flaeche auf der Schnittachse, auf den unrotierten
@@ -97,18 +99,24 @@ function schwerpunkt(f) {
     return s / f.length
 }
 
-// Startwert so, dass beim Laden NICHTS abgeschnitten ist: knapp ueber dem
-// groessten Schwerpunkt, den es auf dieser Achse ueberhaupt gibt. Geschnitten
-// wird erst, wenn du mit "," hineinfaehrst.
-// Aus dem Modell abgeleitet statt fest eingetragen, weil die Modelle die Achse
+// Setzt den Schnitt so, dass NICHTS abgeschnitten ist: knapp ueber den
+// groessten Schwerpunkt, den es auf der aktuellen Achse gibt. Geschnitten wird
+// erst, wenn du mit gehaltener rechter Taste hineinscrollst.
+// Aus dem Modell abgeleitet statt fest eingetragen, weil die Modelle die Achsen
 // unterschiedlich weit ausfuellen — pochita30 reicht auf z nur bis rund 0.7.
-// Ein fester Wert waere dort erst nach einem Dutzend Tastendruecken wirksam.
-let CUT = -Infinity
-for (const f of fs) {
-    const m = schwerpunkt(f)
-    if (m > CUT) CUT = m
+// Ein fester Wert waere dort erst nach einem Dutzend Radschritten wirksam.
+// Laeuft auch bei jedem Achsenwechsel: die neue Achse hat eine andere
+// Ausdehnung, ein uebernommener Wert wuerde dort alles oder nichts wegschneiden.
+let CUT = 0
+function cutZuruecksetzen() {
+    CUT = -Infinity
+    for (const f of fs) {
+        const m = schwerpunkt(f)
+        if (m > CUT) CUT = m
+    }
+    CUT += CUT_SCHRITT
 }
-CUT += CUT_SCHRITT
+cutZuruecksetzen()
 
 // Eindeutige Kantenliste: fs aendert sich nie, und benachbarte Faces teilen
 // sich jede Kante — ohne das hier zeichnen wir jede Kante doppelt (bei skull
@@ -175,10 +183,26 @@ let cutDelta = 0
 // das Modell komplett hinter der Kamera und es bleibt nichts zu zeichnen.
 const DZ_MIN = 0.3
 leinwand.addEventListener("mousedown", (e) => {
+    // Daumentaste schaltet die Schnittachse x -> y -> z weiter. In der
+    // DOM-Zaehlung ist das button 3; die Maus selbst nennt sie meist BT4, weil
+    // sie ab 1 zaehlt und die Radklicks mitzaehlt.
+    if (e.button === 3) {
+        e.preventDefault()      // sonst navigiert der Browser damit zurueck
+        ACHSE = ACHSEN[(ACHSEN.indexOf(ACHSE) + 1) % ACHSEN.length]
+        cutZuruecksetzen()
+        kantenBauen()
+        return
+    }
     if (e.button !== 0) return  // nur links dreht, rechts gehoert dem Schnitt
     ziehen = true
     letzte = {x: e.clientX, y: e.clientY}
     e.preventDefault()          // verhindert Text-Markieren beim Ziehen
+})
+// Guertel und Hosentraeger: manche Browser haengen die Zurueck-Navigation nicht
+// an mousedown, sondern an auxclick. Ein Seitenwechsel waere hier besonders
+// aergerlich, weil Drehung, Zoom und Schnitt dabei verloren gehen.
+leinwand.addEventListener("auxclick", (e) => {
+    if (e.button === 3 || e.button === 4) e.preventDefault()
 })
 // ohne das poppt beim Rechtsklick das Browser-Menue auf — unter Linux schon
 // beim Druecken, nicht erst beim Loslassen
