@@ -3,9 +3,10 @@
 Kleines Lernprojekt: ein simpler 3D-Wireframe-Renderer auf HTML5 Canvas, ohne
 Bibliothek — eigene Matrix-Mathe fürs Rotieren und Projizieren.
 
-Die Idee und der Startpunkt stammen aus einem YouTube-Video von **Tsoding**
-über die „magic formula" — die Perspektivdivision `x/z, y/z`, die im Code bis
-heute so heißt. Der erste
+Die Idee und der Startpunkt stammen aus dem Video
+[One Formula That Demystifies 3D Graphics](https://www.youtube.com/watch?v=qjWkNZ0SXfo)
+von **Tsoding** — die „magic formula" ist die Perspektivdivision `x/z, y/z`,
+die im Code bis heute so heißt. Der erste
 Wurf war im Wesentlichen sein Code aus dem Video. Alles danach ist selbst
 gebaut: Maussteuerung, Tiefen-Shading, dynamisches Nachladen der Modelle und
 die Werkzeugkette, mit der aus einer heruntergeladenen .obj oder .stl ein

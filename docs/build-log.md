@@ -10,6 +10,8 @@ in Zeile 3 repariert, der seit einer versehentlichen Kürzung dort stand.
 **Nicht gebaut:** kein Screenshot, keine Auflistung der einzelnen Config-Werte
 (die stehen kommentiert in den Skripten), kein Lizenz- oder Beitragsabschnitt.
 Kein Link zum Tsoding-Video — die URL kenne ich nicht, nur der Name steht drin.
+*Nachtrag: Link im Folge-Commit ergänzt, Titel „One Formula That Demystifies 3D
+Graphics" von der Seite verifiziert.*
 
 ## 2026-08-08 — feat(tools): cutInHalf Step 3 — Binär-STL-Writer + Report
 **Was:** Schreibt die geclusterten Dreiecke als binäre STL, Normalen bleiben 0,0,0
