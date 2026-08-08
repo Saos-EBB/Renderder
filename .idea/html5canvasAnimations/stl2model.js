@@ -29,8 +29,12 @@
 // Relativ geht auch, wird dann aber von genau diesem Working directory
 // aus gezaehlt, nicht vom Speicherort dieser Datei.
 // Findet er nichts, meldet Node ENOENT mit dem Pfad den er gesucht hat.
-const STL_DATEI = "/home/saosgone/Schreibtisch/coding/stlFiles/Plus Size Anime Warrior Girl.stl";
-
+//
+// Darf eine einzelne .stl sein ODER ein ganzer Ordner. Beim Ordner wird jede
+// .stl darin umgewandelt — nicht rekursiv, Unterordner bleiben aussen vor.
+// Eine kaputte Datei haelt den Stapel nicht auf, sie wird gemeldet und
+// uebersprungen. Genau der Fall skullwithbrain.stl.
+const STL_QUELLE = "/home/saosgone/Schreibtisch/coding/stlFiles/Duo Baldurs Gate.stl"
 // Wohin die fertige .js geschrieben wird. Gleiche Regel wie oben:
 // absolut = eindeutig, relativ = vom Working directory aus.
 // Der Ordner wird angelegt falls es ihn nicht gibt.
@@ -41,7 +45,10 @@ const AUSGABE_ORDNER = "/home/saosgone/Schreibtisch/coding/obj2model";
 // Selbst setzen lohnt, wenn die .stl kryptisch heisst (12327_Statue_V1_L3).
 // Muss ein gueltiger JS-Bezeichner sein: keine Leerzeichen, keine Bindestriche,
 // nicht mit einer Ziffer anfangen.
-const MODELL_NAME = "forMax";
+// Gilt nur bei einer einzelnen Datei. Zeigt STL_QUELLE auf einen Ordner, wird
+// dieser Wert ignoriert — zwanzig Dateien koennen nicht denselben Namen haben,
+// jede bekommt dann ihren aus dem Dateinamen.
+const MODELL_NAME = "duoOG";
 
 // Halbe Ausdehnung des fertigen Modells. Bei 1.2 reicht es von -1.2 bis +1.2,
 // zentriert um 0,0,0. Passt zu deinen anderen Modellen und zu screen(),
@@ -60,11 +67,6 @@ const Z_SPIEGELN = true;
 
 const fs = require("fs");
 const path = require("path");
-
-// ohne Encoding-Argument gibt readFileSync einen Buffer zurueck. Wichtig:
-// binaere .stl als utf8 zu lesen zerstoert die Floats (ungueltige Bytes werden
-// durch U+FFFD ersetzt), und binaer ist der Normalfall.
-const buf = fs.readFileSync(STL_DATEI);
 
 // ---------- binaer lesen ----------
 //   80 Byte Header, dann uint32 mit der Dreieckszahl, dann pro Dreieck
@@ -105,6 +107,13 @@ function asciiLesen(text) {
   return out;
 }
 
+// Wandelt genau eine .stl um. nameVorgabe leer = Name aus dem Dateinamen.
+function umwandeln(stlDatei, nameVorgabe) {
+// ohne Encoding-Argument gibt readFileSync einen Buffer zurueck. Wichtig:
+// binaere .stl als utf8 zu lesen zerstoert die Floats (ungueltige Bytes werden
+// durch U+FFFD ersetzt), und binaer ist der Normalfall.
+const buf = fs.readFileSync(stlDatei);
+
 // ---------- binaer oder ascii? ----------
 // Dem Header ist nicht zu trauen: skullwithbrain.stl traegt zwar "MESHMIXER-
 // STL-BINARY-FORMAT" vorne drin, meldet aber 93972 Dreiecke bei einer Datei,
@@ -124,7 +133,7 @@ if (buf.length === 84 + anzahl * 50) {
   dreiecke = asciiLesen(buf.toString("utf8"));
 } else {
   throw new Error(
-      `${STL_DATEI} ist weder gueltiges Binaer-STL noch ASCII-STL.\n` +
+      `${stlDatei} ist weder gueltiges Binaer-STL noch ASCII-STL.\n` +
       `  Dateigroesse ${buf.length} Byte, der Header meldet ${anzahl} Dreiecke — ` +
       `das waeren ${84 + anzahl * 50} Byte.\n` +
       `  Kein "facet" in den ersten 4096 Byte, also auch kein ASCII.\n` +
@@ -134,7 +143,7 @@ if (buf.length === 84 + anzahl * 50) {
 }
 
 if (dreiecke.length === 0) {
-  throw new Error(`${STL_DATEI} enthaelt keine Dreiecke.`);
+  throw new Error(`${stlDatei} enthaelt keine Dreiecke.`);
 }
 
 // Der Renderer ist ein Software-Renderer: er rechnet jede Kante pro Frame in JS
@@ -200,9 +209,9 @@ for (const d of dreiecke) {
 }
 
 // ---------- schreiben ----------
-let name = MODELL_NAME;
+let name = nameVorgabe;
 if (!name) {
-  name = path.basename(STL_DATEI, path.extname(STL_DATEI)).replace(/[^a-zA-Z0-9]/g, "_");
+  name = path.basename(stlDatei, path.extname(stlDatei)).replace(/[^a-zA-Z0-9]/g, "_");
   // fuehrende Ziffer waere kein gueltiger JS-Bezeichner
   if (/^[0-9]/.test(name)) name = "m" + name;
 }
@@ -221,3 +230,27 @@ fs.writeFileSync(ziel, body);
 
 console.log(`${format}, ${dreiecke.length} Dreiecke = ${dreiecke.length * 3} rohe Ecken -> ${out.length} nach dem Welden`);
 console.log(`${ziel} — ${out.length} vs, ${faces.length} fs`);
+}
+
+// ---------- einzelne datei oder ganzer ordner? ----------
+if (fs.statSync(STL_QUELLE).isDirectory()) {
+  const dateien = fs.readdirSync(STL_QUELLE)
+      .filter((n) => n.toLowerCase().endsWith(".stl"))
+      .sort();
+  if (dateien.length === 0) {
+    throw new Error(`${STL_QUELLE} enthaelt keine .stl-Dateien.`);
+  }
+  let fehler = 0;
+  for (const n of dateien) {
+    // eine kaputte Datei darf den Rest des Stapels nicht aufhalten
+    try {
+      umwandeln(path.join(STL_QUELLE, n), "");
+    } catch (e) {
+      fehler++;
+      console.error(`${n} uebersprungen: ${e.message}`);
+    }
+  }
+  console.log(`${dateien.length - fehler} von ${dateien.length} umgewandelt`);
+} else {
+  umwandeln(STL_QUELLE, MODELL_NAME);
+}

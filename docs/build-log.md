@@ -1,5 +1,15 @@
 # Build Log
 
+## 2026-08-09 — feat(tools): stl2model nimmt auch einen ganzen Ordner
+**Was:** Gleiche Änderung wie bei obj2model, damit beide Konverter sich gleich bedienen
+lassen. `STL_DATEI` → `STL_QUELLE`, darf Datei oder Ordner sein; Umwandlung steckt in
+`umwandeln(datei, nameVorgabe)`; `MODELL_NAME` gilt nur im Einzeldatei-Modus. Der
+`try/catch` pro Datei zahlt sich hier direkt aus: skullwithbrain.stl ist kaputt und
+liegt im selben Ordner wie die guten. Geprüft an einem Ordner mit zwei gültigen STL,
+skullwithbrain, einer 9-Byte-Attrappe und einer .txt — beide gültigen umgewandelt,
+beide kaputten mit Grund gemeldet, .txt ignoriert, Stapel lief durch.
+**Nicht gebaut:** nicht rekursiv, keine Filter, kein Überspringen vorhandener Ausgaben.
+
 ## 2026-08-09 — feat(tools): obj2model nimmt auch einen ganzen Ordner
 **Was:** `OBJ_DATEI` heißt jetzt `OBJ_QUELLE` und darf eine Datei **oder** ein Ordner
 sein; beim Ordner wird jede `.obj` darin umgewandelt. Die Umwandlung ist dafür in
