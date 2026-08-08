@@ -1,5 +1,13 @@
 # Build Log
 
+## 2026-08-09 — refactor(modelle): Namensliste eine Ebene über die Daten
+**Was:** `modelle/modelle.js` → `modelle.js`. Das Verzeichnis steht damit neben dem
+Ordner, den es beschreibt, statt darin. Zwei Pfade drehen sich um: `renderer.js`
+importiert `./modelle.js`, und der dynamische Import darin wird zu
+`./modelle/${name}.js`. Geprüft: alle 21 Einträge lösen unter dem neuen Layout auf.
+**Nicht gebaut:** kein Re-Export-Stub am alten Ort, keine Umbenennung der Datei, keine
+Änderung an der Signatur von `importModel`.
+
 ## 2026-08-09 — fix(renderer): Farbrampe entschärft, nahe Kanten wurden weiß
 **Was:** Die Rampe ging bis L 90 %. Bei S 85 % lesen die obersten Stufen als Weiß —
 `#d0e5fb` hat Minimalkanal 208 von 255 und nur 43 Buntheit —, und wo viele nahe Kanten

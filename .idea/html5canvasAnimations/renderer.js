@@ -1,4 +1,4 @@
-import {importModel} from "./modelle/modelle.js";
+import {importModel} from "./modelle.js";
 leinwand.width = 1300
 leinwand.height = 1200
 const BACKGROUND = '#000000'

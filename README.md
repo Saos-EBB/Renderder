@@ -34,8 +34,8 @@ Modell wird, das der Renderer verkraftet.
 ## Struktur
 
 - `.idea/html5canvasAnimations/renderer.js` — Renderer + Maussteuerung
+- `.idea/html5canvasAnimations/modelle.js` — Namensliste + `importModel`
 - `.idea/html5canvasAnimations/modelle/` — Vertex/Face-Daten der 3D-Modelle
-- `.idea/html5canvasAnimations/modelle/modelle.js` — Namensliste + `importModel`
 - `.idea/html5canvasAnimations/index.html` — Einstiegspunkt
 
 Modell wechseln: Name in die Liste in `modelle.js` eintragen, in `renderer.js`
