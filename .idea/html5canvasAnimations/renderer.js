@@ -50,10 +50,13 @@ window.addEventListener("mousemove", (e) => {
     letzte = {x: e.clientX, y: e.clientY}
 })
 // 'Modelle ' ----------------------------------------
-const model = importModel("skull")
+const model = importModel("teapot")
 const vs = model.vs
 const fs = model.fs
 //----------------------------------------------------
+let dz = 2.5;  // wo start ??
+
+
 function translate_z({x, y, z}, dz) {
     return {x, y, z: z + dz};
 }
@@ -84,7 +87,6 @@ function rotate_yz({x, y, z}, angle) {
         z: y * s + z * c,
     }
 }
-let dz = 5;  // wo start ??
 
 // --- Tiefen-Shading: Kanten nach Entfernung einfaerben (nah hell, fern dunkel)
 // Palette aendern = nur dieses Array; der Rest passt sich an SHADES.length an.
@@ -130,6 +132,8 @@ function frame() {
         }
         ctx.stroke()
     }
+    // ponytail: setTimeout statt requestAnimationFrame — driftet unter Last
+    // und laeuft im Hintergrundtab weiter. Upgrade auf rAF, falls das stoert.
     setTimeout(frame, 1000 / FPS);
 }
 setTimeout(frame, 1000 / FPS);
