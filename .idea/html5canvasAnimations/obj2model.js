@@ -22,7 +22,7 @@
 // Relativ geht auch, wird dann aber von genau diesem Working directory
 // aus gezaehlt, nicht vom Speicherort dieser Datei.
 // Findet er nichts, meldet Node ENOENT mit dem Pfad den er gesucht hat.
-const OBJ_DATEI = "//home/saosgone/Schreibtisch/coding/dick_lp.obj";
+const OBJ_DATEI = "/home/saosgone/Schreibtisch/coding/objFiles/12327_Statue_V1_L3.obj";
 
 // Wohin die fertige .js geschrieben wird. Gleiche Regel wie oben:
 // absolut = eindeutig, relativ = vom Working directory aus.
@@ -34,7 +34,7 @@ const AUSGABE_ORDNER = "/home/saosgone/Schreibtisch/coding/obj2model";
 // Selbst setzen lohnt, wenn die .obj kryptisch heisst (16834_hand_v1_NEW).
 // Muss ein gueltiger JS-Bezeichner sein: keine Leerzeichen, keine Bindestriche,
 // nicht mit einer Ziffer anfangen.
-const MODELL_NAME = "dick01";
+const MODELL_NAME = "statue00";
 
 // Halbe Ausdehnung des fertigen Modells. Bei 1.2 reicht es von -1.2 bis +1.2,
 // zentriert um 0,0,0. Passt zu deinen anderen Modellen und zu screen(),
@@ -79,9 +79,11 @@ for (const line of fs.readFileSync(OBJ_DATEI, "utf8").split("\n")) {
 const mid = {};
 const half = {};
 for (const k of ["x", "y", "z"]) {
-  const v = vs.map((q) => q[k]);
-  const lo = Math.min(...v);
-  const hi = Math.max(...v);
+  let lo = Infinity, hi = -Infinity;
+  for (const q of vs) {
+    if (q[k] < lo) lo = q[k];
+    if (q[k] > hi) hi = q[k];
+  }
   mid[k] = (lo + hi) / 2;
   half[k] = (hi - lo) / 2;
 }
