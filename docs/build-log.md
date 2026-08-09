@@ -1,5 +1,32 @@
 # Build Log
 
+## 2026-08-10 — feat(renderer): Vertizes verbinden per Shift+Klick
+**Was:** Step 6, der Abschluss der Edit-Mode-Arbeit. Shift+Klick auf einen Punkt macht
+ihn zum Anker (grün), jeder weitere Shift+Klick zieht eine Kante vom Anker dorthin —
+**Stern**, der Anker bleibt stehen. Shift auf den Anker selbst oder ins Leere legt ihn ab.
+Eine Zusatztaste statt eines eigenen Verbinde-Modus: so bleibt Ziehen jederzeit
+erreichbar, und man muss sich nicht merken, in welchem Zustand die Maus gerade ist.
+Shift startet nie ein Ziehen.
+**Speicherung.** Manuelle Kanten leben in `extraKanten`, **nicht** in `fs` — obwohl das
+Format Zweier-Flächen kennt (`cube.js` hat `[0,4]` neben den Vierecken) und
+`kantenBauen()` sie anstandslos verarbeiten würde. Der Grund ist `schwerpunkt()`: es liest
+`model.vs`, und für einen eingefügten Punkt gibt es dort keine Position, weil Weg A keinen
+Rückweg der Rotation hat. Ein Eintrag in `fs` liefe also auf `undefined`.
+`kantenBauen()` hängt `extraKanten` am Ende an. Damit überstehen manuelle Kanten jeden
+Achsen- und Cut-Neubau von selbst, und die Zeichenschleife merkt nichts davon — Shading,
+Nah-Grenze und Farbtöpfe gelten für sie unverändert. `kanteVerbinden()` schreibt in beide
+Listen: in `kanten` für das sofortige Bild, in `extraKanten` für den nächsten Neubau.
+Doppelte Verbindungen fängt derselbe `a<b`-Schlüssel ab, den `kantenBauen()` schon benutzt.
+**Bewusst:** manuelle Kanten liegen ausserhalb des Cutaways und bleiben sichtbar, auch wenn
+ringsum weggeschnitten ist — dieselbe Wurzel wie oben. Beim Bauen will man ohnehin sehen,
+was man gerade zieht.
+**Nicht gebaut:** kein Löschen von Kanten oder Punkten, kein Undo (Reload ist der Reset),
+keine eigene Farbe für manuelle Kanten (sie sind jetzt Modell wie jede andere), kein
+Erzeugen von Flächen aus drei Kanten, keine Dedup gegen Kanten die schon im Modell stehen —
+verbindet man zwei ohnehin benachbarte Vertizes, wird dieselbe Linie zweimal gezogen, was
+man nicht sieht. Kein Export: `model.vs` und `fs` bleiben unberührt, alles Neue lebt nur
+in `mesh` und `extraKanten` und ist beim Reload weg.
+
 ## 2026-08-10 — feat(renderer): Vertex einfügen per BT4 / Taste „i"
 **Was:** Step 5. Die vordere Daumentaste (DOM `button 3`, auf der Maus BT4) bekommt zwei
 Bedeutungen: im Betrachten schaltet sie wie bisher die Schnittachse, im Edit-Mode setzt

@@ -134,6 +134,18 @@ cutZuruecksetzen()
 // ueber ihren Schwerpunkt. Die Schnittkante wird dadurch gezackt und folgt den
 // Dreieckskanten, und das Innere liegt hohl frei. Genau richtig zum Reinschauen.
 let kanten = []
+// Von Hand gezogene Kanten. Eigene Liste statt Eintraegen in fs, obwohl das
+// Format Zweier-Flaechen kennt (cube.js hat [0,4] neben den Vierecken) und
+// kantenBauen() sie verarbeiten wuerde: schwerpunkt() liest model.vs, und fuer
+// einen eingefuegten Punkt gibt es dort keine Position — Weg A hat keinen
+// Rueckweg der Rotation. Ein Eintrag in fs liefe also auf undefined.
+// Folge, bewusst: manuelle Kanten liegen ausserhalb des Cutaways. Sie bleiben
+// sichtbar, auch wenn ringsum weggeschnitten ist. Beim Bauen will man ohnehin
+// sehen, was man gerade zieht.
+let extraKanten = []
+// Verhindert, dass dieselbe Verbindung mehrfach in der Liste landet. Derselbe
+// Schluessel wie unten, damit a-b und b-a als eine Kante gelten.
+const extraSchluessel = new Set()
 function kantenBauen() {
     kanten = []
     const gesehen = new Set()
@@ -148,8 +160,24 @@ function kantenBauen() {
             kanten.push([a, b])
         }
     }
+    // Anhaengen statt in der Zeichenschleife zu beruecksichtigen: so ueberleben
+    // die manuellen Kanten jeden Achsen- und Cut-Neubau von selbst, und die
+    // Schleife merkt nichts davon — Shading, Nah-Grenze und Farbtoepfe gelten
+    // fuer sie unveraendert.
+    for (const k of extraKanten) kanten.push(k)
 }
 kantenBauen()
+
+// Zwei Vertizes verbinden. Landet in beiden Listen: in kanten, damit die
+// Verbindung sofort zu sehen ist, und in extraKanten, damit sie den naechsten
+// Neubau uebersteht.
+function kanteVerbinden(a, b) {
+    const key = a < b ? `${a},${b}` : `${b},${a}`
+    if (extraSchluessel.has(key)) return
+    extraSchluessel.add(key)
+    extraKanten.push([a, b])
+    kanten.push([a, b])
+}
 
 // z-Fenster fuer das Shading: aus der echten z-Spanne des Meshes statt geraten.
 // Fest verdrahtete +-1.8 waren breiter als jedes Modell, dadurch landeten fast
@@ -449,7 +477,29 @@ leinwand.addEventListener("mousedown", (e) => {
     // Rueckseite kaeme man nie heran.
     if (editMode) {
         const p = leinwandPos(e.clientX, e.clientY)
-        gegriffen = vertexAn(p.x, p.y)
+        const treffer = vertexAn(p.x, p.y)
+
+        // Shift+Klick verbindet, statt zu greifen. Eine Zusatztaste und kein
+        // eigener Modus: Ziehen bleibt dadurch jederzeit erreichbar, und man
+        // muss sich nicht merken, in welchem Zustand die Maus gerade ist.
+        // Stern statt Kette — der Anker bleibt stehen, jeder weitere Klick
+        // zieht eine Kante von ihm weg. Fuer eine Kette klickt man den neuen
+        // Ausgangspunkt zwischendurch selbst an.
+        if (e.shiftKey) {
+            e.preventDefault()
+            if (treffer === -1) {
+                anker = -1                      // ins Leere: Anker ablegen
+            } else if (anker === -1) {
+                anker = treffer                 // erster Klick: Ausgangspunkt
+            } else if (treffer === anker) {
+                anker = -1                      // nochmal derselbe: abwaehlen
+            } else {
+                kanteVerbinden(anker, treffer)
+            }
+            return                              // Shift zieht nie
+        }
+
+        gegriffen = treffer
         if (gegriffen !== -1) {
             // ziehen wird auch hier gesetzt: das Geruest ist dasselbe, nur
             // zweigt mousemove gleich in den Editier-Pfad ab. Nach dem mouseup
