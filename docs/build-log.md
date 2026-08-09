@@ -1,5 +1,45 @@
 # Build Log
 
+## 2026-08-09 — feat(renderer): Vertex ziehen — Edit-Mode fertig
+**Was:** Step 4 von Weg A, der Schluss. Die gegriffene Ecke folgt der Maus, das Mesh
+verformt sich live, alle Kanten an der Ecke wandern mit (`kanten` zeigt auf den Index,
+der ändert sich nicht). Recycelt das bestehende Gerüst: `ziehen` wird beim Greifen mit
+gesetzt, `mousemove` zweigt vor dem Dreh-Zweig ab, `mouseup` beendet beides. Nach dem
+Loslassen bleibt die Ecke markiert, folgt aber nicht mehr.
+Der Rückweg hat **zwei** Schritte, kein transponiertes R — es gibt keine
+Rotationsmatrix, `mesh` *ist* die gedrehte Geometrie, die Ecke liegt also schon in dem
+Raum, in dem das Delta entsteht. Pixel→NDC mit **getrennten** Faktoren für `width` und
+`height` (`screen()` rechnet die Achsen getrennt, und `width` stand zwischenzeitlich
+auf 1300 — ein gemeinsamer „scale" bräche lautlos an einer nicht-quadratischen
+Leinwand), Minus bei y als Umkehr des Spiegelns. Dann NDC→mesh mit `vz = mesh[i].z + dz`
+— **mit `dz`**, weil `translate_z` es vor der Projektion addiert; ohne wäre die Skala um
+`dz` daneben. `z` bleibt unangetastet, die Ecke wandert parallel zur Bildebene.
+Das Rad ist gesperrt, solange eine Ecke am Cursor hängt: Zoom ändert `dz` und damit den
+Divisor mitten im Ziehen. Bewusst enger als im Auftrag (`ziehen && gegriffen !== -1`
+statt `ziehen && editMode`) — beim blossen Drehen im Edit-Mode gibt es kein `vz`, das
+konstant bleiben müsste, also darf dort gezoomt werden wie immer.
+
+**Bewusster Tausch — Weg A, kein Bug:**
+- `model.vs` läuft auseinander. Editiert wird `mesh`, `model.vs` bleibt die Ausgangsform.
+  Ein Export gäbe die alte Geometrie. Wer die Edits behalten will, braucht Weg B mit
+  Matrix — separates Test-Renderfile, später, nicht hier.
+- **Cut/`kanten` werden nach einem Move NICHT neu gebaut, und der Neubau wäre ein No-op.**
+  Der Auftrag nennt das als Falle („Vertex über die Schnittebene ziehen → Kantenliste
+  veraltet"), aber das gilt für Weg B: `schwerpunkt()` liest `model.vs[i]`, und
+  `cutZuruecksetzen()` / `kantenBauen()` hängen ausschliesslich daran. Ein Mesh-Edit
+  ändert die Cut-Entscheidung nie. Ein Neubau nach Drag-Ende erzeugte exakt dieselbe
+  Liste und liefe bei grossen Modellen pro Drag durch alle Flächen. Der Cutaway rechnet
+  weiter auf der uneditierten Geometrie — das ist dieselbe Einschränkung wie oben,
+  nicht eine zweite.
+- `zFenster()` bleibt nach einem Move stale: es liest `mesh`, läuft aber nur im
+  Rotationszweig. Das Tiefen-Shading passt sich der verschobenen Ecke erst beim nächsten
+  Drehen an. Akzeptiert (F5 in `performance.md` ist beim Zoom ohnehin schon offen).
+- Kein Clipping: zieht man eine Ecke durch die Kameraebene, geht `vz` gegen 0 und sie
+  schiesst ins Unendliche. Am Aussenmodell unkritisch, aber kennen.
+
+**Nicht gebaut:** kein Cut-/`kanten`-Neubau (No-op, siehe oben), kein Clipping, kein
+Undo (Reload ist der Reset), keine z-Verschiebung, kein Export, kein Mehrfach-Select.
+
 ## 2026-08-09 — feat(renderer): Vertex picken + Highlight
 **Was:** Step 3 von Weg A. Linksklick im Edit-Mode sucht über den Projektions-Cache
 den nächsten Vertex im Radius und markiert ihn rot; noch kein Ziehen — Picking wird

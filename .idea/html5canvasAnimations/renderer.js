@@ -272,6 +272,11 @@ function vertexAn(x, y) {
 // --- Maussteuerung ---
 let ziehen = false
 let letzte = {x: 0, y: 0}
+// Zweite Merkposition, in LEINWAND-Koordinaten. letzte bleibt viewport-relativ,
+// weil die Drehung daran haengt und ein Umstellen ihre Geschwindigkeit aendern
+// wuerde, sobald die Leinwand skaliert dargestellt ist. Das Ziehen braucht
+// dagegen dasselbe Mass wie psx/psy, sonst passt die Umrechnung nach NDC nicht.
+let letzteLein = {x: 0, y: 0}
 // aufgelaufene Drehung. mousemove feuert bis ~120x/s, das Mesh hat aber bis zu
 // 110k Vertizes — pro Event drehen hiesse hunderttausende Objekte pro Sekunde
 // neu allozieren. Hier nur Winkel addieren, gedreht wird einmal pro Frame.
@@ -295,9 +300,6 @@ function achseWechseln() {
     cutZuruecksetzen()
     kantenBauen()
 }
-// Doppelt belegt, Daumentaste und Tastatur, und zwar nicht aus Bequemlichkeit:
-// WebStorms eingebaute Vorschau laeuft auf JCEF und reicht die Daumentasten
-// nicht bis zur Seite durch. In Brave arbeitet die Maustaste, im Preview "a".
 // Beim Verlassen die Auswahl loeschen, sonst leuchtet beim naechsten Einschalten
 // die Ecke von vorhin weiter — und das an einer Stelle, die inzwischen
 // weggedreht sein kann.
@@ -305,8 +307,11 @@ function editModeUmschalten() {
     editMode = !editMode
     gegriffen = -1
 }
-// Aus demselben Grund liegt der Edit-Mode auf "e": im Preview kommt Button 4
-// nicht an, die Taste ist also die Wahrheit und die Maustaste nur die Zugabe.
+// Beide Funktionen liegen doppelt, Daumentaste und Tastatur, und zwar nicht aus
+// Bequemlichkeit: WebStorms eingebaute Vorschau laeuft auf JCEF und reicht die
+// Daumentasten nicht bis zur Seite durch. In Brave arbeiten die Maustasten, im
+// Preview "a" fuer die Achse und "e" fuer den Edit-Mode. Die Tasten sind die
+// Wahrheit, die Maustasten die Zugabe.
 window.addEventListener("keydown", (e) => {
     if (e.key === "a" || e.key === "A") achseWechseln()
     if (e.key === "e" || e.key === "E") editModeUmschalten()
@@ -338,6 +343,16 @@ leinwand.addEventListener("mousedown", (e) => {
         const p = leinwandPos(e)
         gegriffen = vertexAn(p.x, p.y)
         if (gegriffen !== -1) {
+            // ziehen wird auch hier gesetzt: das Geruest ist dasselbe, nur
+            // zweigt mousemove gleich in den Editier-Pfad ab. Nach dem mouseup
+            // bleibt die Ecke markiert, folgt aber nicht mehr.
+            ziehen = true
+            letzteLein = p
+            // letzte trotzdem mitfuehren: schaltet jemand mitten im Drag den
+            // Edit-Mode aus, faellt der naechste mousemove in den Dreh-Zweig,
+            // und der rechnet sein Delta gegen genau diesen Wert. Stuende hier
+            // noch der vom vorletzten Ziehen, spraenge das Modell.
+            letzte = {x: e.clientX, y: e.clientY}
             e.preventDefault()
             return
         }
@@ -359,6 +374,11 @@ leinwand.addEventListener("contextmenu", (e) => e.preventDefault())
 // und die Seite scrollt beim Zoomen mit
 leinwand.addEventListener("wheel", (e) => {
     e.preventDefault()
+    // Waehrend eine Ecke am Cursor haengt, ist das Rad gesperrt. Zoom aendert
+    // dz, dz steckt im Divisor vz — mitten im Ziehen umgestellt, springt die
+    // Ecke. Nur bei gegriffener Ecke, nicht schon im Edit-Mode: beim blossen
+    // Drehen darf gezoomt werden wie immer.
+    if (ziehen && gegriffen !== -1) return
     // Nur das Vorzeichen von deltaY zaehlt, nie der Betrag: der ist je nach
     // Maus, Browser und deltaMode mal 3, mal 100, bei Trackpads krumm.
     // Vorwaerts scrollen (deltaY negativ) schiebt weg bzw. hinein.
@@ -379,6 +399,38 @@ leinwand.addEventListener("wheel", (e) => {
 window.addEventListener("mouseup", () => { ziehen = false })
 window.addEventListener("mousemove", (e) => {
     if (!ziehen) return
+    // Haengt eine Ecke am Cursor, gehoert die Bewegung ihr und nicht der
+    // Ansicht. gegriffen !== -1 kann es nur im Edit-Mode geben, das Umschalten
+    // setzt den Index zurueck.
+    if (gegriffen !== -1) {
+        const p = leinwandPos(e)
+        const dPixelX = p.x - letzteLein.x
+        const dPixelY = p.y - letzteLein.y
+        letzteLein = p
+
+        // Rueckweg Pixel -> mesh-Raum. Zwei Schritte, kein transponiertes R:
+        // es gibt keine Rotationsmatrix, mesh IST die gedrehte Geometrie, und
+        // damit liegt die Ecke schon in dem Raum, in dem das Delta entsteht.
+        //
+        // 1. Pixel -> NDC. Die Faktoren sind PRO ACHSE, kein gemeinsamer scale:
+        //    screen() rechnet mit leinwand.width und leinwand.height getrennt,
+        //    und width stand zwischenzeitlich auf 1300. Ein einzelner Faktor
+        //    braeche lautlos, sobald die Leinwand nicht quadratisch ist.
+        //    Das Minus bei y ist das Spiegeln aus screen() rueckwaerts.
+        const dNdcX = 2 * dPixelX / leinwand.width
+        const dNdcY = -2 * dPixelY / leinwand.height
+
+        // 2. NDC -> mesh-Raum. magic() teilt durch die Tiefe, hier wird wieder
+        //    multipliziert. MIT dz, weil translate_z es vor der Projektion
+        //    addiert — ohne waere die Skala um dz daneben und die Ecke liefe
+        //    dem Cursor davon oder hinterher.
+        const vz = mesh[gegriffen].z + dz
+        mesh[gegriffen].x += dNdcX * vz
+        mesh[gegriffen].y += dNdcY * vz
+        // z bleibt unangetastet: die Ecke wandert parallel zur Bildebene, sonst
+        // aendert sich waehrend des Ziehens der eigene Divisor.
+        return
+    }
     drehY += (e.clientX - letzte.x) * 0.01   // horizontal
     drehX += (letzte.y - e.clientY) * 0.01   // vertikal (invertiert)
     letzte = {x: e.clientX, y: e.clientY}
