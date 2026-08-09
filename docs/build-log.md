@@ -1,5 +1,27 @@
 # Build Log
 
+## 2026-08-10 — fix(renderer): Verbinden sichtbar machen — Gummiband + Anker-Falle
+**Was:** Step 7. Das Verbinden aus Step 6 funktionierte, war aber praktisch nicht
+bedienbar — Meldung vom Nutzer: „ich sehs nicht, die Punkte werden gesetzt".
+Zwei Ursachen, beide meine:
+**Die Anker-Falle.** Nach dem Einfügen ist der neue Punkt bereits Anker. Man klickt ihn
+trotzdem an, weil man ihn als Ausgangspunkt haben will — und genau das lag auf
+„abwählen". Danach war nichts ausgewählt, der nächste Shift-Klick setzte nur einen neuen
+Anker, und die erste Linie entstand drei Klicks später zwischen zwei fremden Punkten. Ein
+Klick auf den Anker hält ihn jetzt. Abgewählt wird über **Escape** oder Shift-Klick ins
+Leere. Zustandsautomat gegen beide Abläufe durchgespielt: mit und ohne Vorklick entstehen
+jetzt dieselben Kanten vom eingefügten Punkt.
+**Keine Rückmeldung.** Man sah dem Bild nicht an, ob der nächste Shift-Klick eine Kante
+zieht oder nur einen Anker setzt. Jetzt läuft ein gestricheltes grünes Gummiband vom Anker
+zum Cursor — gestrichelt, weil es noch keine Kante ist. `setLineDash` geht danach zurück,
+Kanten und Vorschau teilen sich den Kontext.
+**Die Zeichenkette selbst war in Ordnung** und wurde vor dem Umbau nachgerechnet: Cube mit
+Preset-Rotation, Punkt bei (300,300) eingefügt, zwei Kanten gezogen — beide landen in
+`kanten`, überstehen den Neubau und bekommen die Blaustufen 7 und 8, also aus der Mitte
+der Rampe und deutlich sichtbar. Am Rendern lag es nie.
+**Nicht gebaut:** kein Kanten-Löschen, kein Hover-Highlight des Zielpunkts vor dem Klick,
+keine eigene Farbe für manuelle Kanten.
+
 ## 2026-08-10 — feat(renderer): Vertizes verbinden per Shift+Klick
 **Was:** Step 6, der Abschluss der Edit-Mode-Arbeit. Shift+Klick auf einen Punkt macht
 ihn zum Anker (grün), jeder weitere Shift+Klick zieht eine Kante vom Anker dorthin —

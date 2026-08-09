@@ -79,7 +79,7 @@ let dz = 2.5;  // wo start ??
 // greifen auf ein noch nicht initialisiertes mesh zu.
 // cube waehrend der Edit-Mode-Arbeit: 8 Vertizes, jede Ecke einzeln sichtbar.
 // Auf einem 31k-Modell sieht man einen um zwei Pixel versetzten Punkt nicht.
-const model = await importModel("stoneman");
+const model = await importModel("cube");
 const fs = model.fs
 //----------------------------------------------------
 
@@ -442,6 +442,9 @@ window.addEventListener("keydown", (e) => {
         const p = leinwandPos(mausClient.x, mausClient.y)
         vertexEinfuegen(p.x, p.y)
     }
+    // Anker loslassen. Braucht es, seit ein Klick auf den Anker ihn haelt
+    // statt ihn abzuwaehlen — sonst haengt das Gummiband am Cursor fest.
+    if (e.key === "Escape") anker = -1
 })
 leinwand.addEventListener("mousedown", (e) => {
     // Die vordere Daumentaste. In der DOM-Zaehlung ist das button 3; die Maus
@@ -485,14 +488,18 @@ leinwand.addEventListener("mousedown", (e) => {
         // Stern statt Kette — der Anker bleibt stehen, jeder weitere Klick
         // zieht eine Kante von ihm weg. Fuer eine Kette klickt man den neuen
         // Ausgangspunkt zwischendurch selbst an.
+        // Ein Klick auf den Anker selbst tut nichts. Er lag vorher auf
+        // "abwaehlen", und das war eine Falle: nach dem Einfuegen ist der neue
+        // Punkt bereits Anker, man klickt ihn aber trotzdem an — weil man ihn
+        // ja als Ausgangspunkt haben will. Das schaltete ihn dann ab, und die
+        // erste Linie entstand drei Klicks spaeter an der falschen Stelle.
+        // Abgewaehlt wird ueber Escape oder einen Shift-Klick ins Leere.
         if (e.shiftKey) {
             e.preventDefault()
             if (treffer === -1) {
                 anker = -1                      // ins Leere: Anker ablegen
-            } else if (anker === -1) {
-                anker = treffer                 // erster Klick: Ausgangspunkt
-            } else if (treffer === anker) {
-                anker = -1                      // nochmal derselbe: abwaehlen
+            } else if (anker === -1 || treffer === anker) {
+                anker = treffer                 // Ausgangspunkt setzen bzw. halten
             } else {
                 kanteVerbinden(anker, treffer)
             }
@@ -651,6 +658,24 @@ function frame() {
     // Vertex-Punkte zuletzt, damit sie ueber den Kanten liegen — man soll
     // sehen, was greifbar ist, nicht was davor gezeichnet wurde.
     if (editMode) {
+        // Gummiband vom Anker zum Cursor. Es ist die einzige Rueckmeldung,
+        // dass eine Verbindung aussteht: vorher sah man dem Bild nicht an, ob
+        // der naechste Shift-Klick eine Kante zieht oder nur einen Anker setzt,
+        // und genau daran ist das Verbinden gescheitert.
+        // Gestrichelt, weil es noch keine Kante ist. setLineDash geht danach
+        // zurueck — die Kanten im naechsten Frame teilen sich den Kontext.
+        // getBoundingClientRect() einmal pro Frame ist hier vertretbar, anders
+        // als bei jeder Mausbewegung.
+        if (anker !== -1 && psz[anker] > NAH_GRENZE) {
+            const c = leinwandPos(mausClient.x, mausClient.y)
+            ctx.strokeStyle = ANKER_FARBE
+            ctx.setLineDash([6, 6])
+            ctx.beginPath()
+            ctx.moveTo(psx[anker], psy[anker])
+            ctx.lineTo(c.x, c.y)
+            ctx.stroke()
+            ctx.setLineDash([])
+        }
         ctx.fillStyle = DOT_FARBE
         const halb = DOT_GROESSE / 2
         for (let i = 0; i < mesh.length; i++) {
