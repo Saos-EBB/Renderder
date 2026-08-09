@@ -1,5 +1,26 @@
 # Build Log
 
+## 2026-08-09 — feat(renderer): Projektions-Cache pro Vertex + Vertex-Punkte
+**Was:** Step 1 von Weg A. Neuer Durchlauf `punkteRechnen()` projiziert einmal pro
+Frame **jeden Vertex einmal** nach `psx/psy/psz`; die Kantenschleife projiziert nicht
+mehr selbst, sondern schlägt per Index nach. Vorher lief sie über Index-Paare und
+projizierte jeden Vertex einmal pro anliegender Kante — bei `hand1_g128` 192.882
+Projektionen für 31.516 Vertizes. Zwei Dinge fallen damit zusammen: das Picking
+braucht genau diesen Cache, und es gibt jetzt nur noch **eine** Projektionsstelle,
+also können Punkte und Linienenden nicht mehr auseinanderlaufen.
+`psz` hält bewusst die Tiefe **mit `dz`** (`v.z + dz`) — das ist die Zahl, durch die
+`magic()` teilt, und in Step 4 die Umkehr des Divisors. Stünde hier `mesh[i].z`, wäre
+die Zieh-Skala um `dz` verschoben. Die Farbtöpfe halten jetzt flache Index-Paare statt
+fertiger Punktobjekte, das spart pro Frame ein Wegwerf-Objekt je Kantenende. Die 0.01
+für „hinter der Kamera" heisst jetzt `NAH_GRENZE`, weil sie an zwei Stellen geprüft
+wird. Startmodell auf `cube` umgestellt, wie im Auftrag verlangt.
+**Nicht gebaut:** kein Edit-Mode-Flag — die Punkte zeichnen in diesem Step
+unbedingt, damit er allein testbar ist; das Gating kommt in Step 2. Keine
+allokationsfreie Inline-Projektion (F1 aus `performance.md`): `punkteRechnen()` ruft
+`screen(magic(translate_z(…)))` auf und alloziert damit drei Objekte pro Vertex —
+bewusst, damit die Formel eine einzige Quelle behält. Kein Umbau der Farbtöpfe auf
+typisierte Arrays, keine Behebung von F5 (`zFenster` beim Zoom).
+
 ## 2026-08-09 — chore(repo): Baseline für Edit-Mode, cube zurück als Testmodell
 **Was:** Startpunkt für Weg A auf Branch `editmode/weg-a`. Zwei Dinge, die vorher
 liegen mussten. Erstens der Arbeitsstand, der uncommittet im Baum lag und in genau den

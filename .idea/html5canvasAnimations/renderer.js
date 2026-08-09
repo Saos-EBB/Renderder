@@ -77,7 +77,9 @@ let dz = 2.5;  // wo start ??
 // await, weil importModel jetzt dynamisch nachlaedt. Modell und mesh MUESSEN
 // vor den Maus-Listenern stehen: die feuern sonst waehrend des await und
 // greifen auf ein noch nicht initialisiertes mesh zu.
-const model = await importModel("hand1_g128");
+// cube waehrend der Edit-Mode-Arbeit: 8 Vertizes, jede Ecke einzeln sichtbar.
+// Auf einem 31k-Modell sieht man einen um zwei Pixel versetzten Punkt nicht.
+const model = await importModel("cube");
 const fs = model.fs
 //----------------------------------------------------
 
@@ -167,6 +169,46 @@ function zFenster() {
     Z_FERN = hi > lo ? hi + dz : Z_NAH + 1
 }
 zFenster()
+
+// --- Projektions-Cache: ein Bildschirmpunkt pro Vertex, einmal pro Frame ---
+// Die Kantenschleife lief ueber Index-PAARE und projizierte damit jeden Vertex
+// einmal pro anliegender Kante — bei hand1_g128 192.882 Projektionen fuer
+// 31.516 Vertizes, Faktor 6,1. Jetzt einmal pro Vertex hier, die Kanten lesen
+// nur noch per Index nach.
+//
+// Zwei Gruende, warum das genau so aussieht:
+// - Es gibt nur EINE Projektionsstelle. Wuerde die Kantenschleife weiter selbst
+//   projizieren, koennten Punkte und Linienenden auseinanderlaufen, sobald
+//   jemand screen() oder magic() anfasst.
+// - psz haelt die Tiefe MIT dz, also genau die Zahl, durch die magic() teilt.
+//   Wer hier mesh[i].z ohne dz ablegt, bekommt spaeter beim Ziehen eine um dz
+//   verschobene Skala.
+//
+// mesh wird bei jeder Drehung neu zugewiesen, die LAENGE aendert sich nie —
+// deshalb reicht es, die drei Puffer einmal anzulegen.
+const psx = new Float64Array(model.vs.length)
+const psy = new Float64Array(model.vs.length)
+const psz = new Float64Array(model.vs.length)
+// Vertizes vor dieser Tiefe liegen hinter der Kamera. magic() wuerde sie
+// gespiegelt und riesig ins Bild werfen; beim Reinzoomen faehrt das Modell da
+// durch. Frueher stand die 0.01 nur in der Kantenschleife, jetzt pruefen
+// Kanten UND Punkte dagegen, also einmal benannt.
+const NAH_GRENZE = 0.01
+function punkteRechnen() {
+    for (let i = 0; i < mesh.length; i++) {
+        const v = mesh[i]
+        psz[i] = v.z + dz
+        if (psz[i] <= NAH_GRENZE) continue   // sx/sy waeren Muell, gar nicht erst rechnen
+        const p = screen(magic(translate_z(v, dz)))
+        psx[i] = p.x
+        psy[i] = p.y
+    }
+}
+
+// Farbe der Vertex-Punkte. Warm, damit sie sich gegen die blaue Kantenrampe
+// absetzen — auf Blau in Blau sieht man nicht, was man greifen koennte.
+const DOT_FARBE = "#ffb454"
+const DOT_GROESSE = 3
 
 // --- Maussteuerung ---
 let ziehen = false
@@ -271,31 +313,45 @@ function frame() {
         kantenBauen()
     }
 
+    // alle Vertizes einmal projizieren, danach wird nur noch nachgeschlagen
+    punkteRechnen()
+
     //render lines + tiefen-shading
-    // Kanten in Helligkeits-Toepfe sortieren statt sofort zu zeichnen
+    // Kanten in Helligkeits-Toepfe sortieren statt sofort zu zeichnen.
+    // In den Topf gehen die INDIZES, flach hintereinander — zwei Eintraege je
+    // Kante. Fertige Punktobjekte waeren pro Frame ein Wegwerf-Objekt je Ecke.
     const toepfe = SHADES.map(() => [])
     for (const [ia, ib] of kanten) {
-        // translate, z BLEIBT erhalten (magic wirft es sonst weg)
-        const a = translate_z(mesh[ia], dz)
-        const b = translate_z(mesh[ib], dz)
-        // hinter der Kamera: magic() wuerde die Kante sonst gespiegelt und
-        // riesig ins Bild werfen. Beim Reinzoomen faehrt das Modell da durch.
-        if (a.z <= 0.01 || b.z <= 0.01) continue
+        const za = psz[ia]
+        const zb = psz[ib]
+        if (za <= NAH_GRENZE || zb <= NAH_GRENZE) continue
         // mittlere Tiefe der Kante -> Farbindex
-        let t = (((a.z + b.z) / 2) - Z_NAH) / (Z_FERN - Z_NAH)
+        let t = (((za + zb) / 2) - Z_NAH) / (Z_FERN - Z_NAH)
         t = Math.max(0, Math.min(1, t))
         const idx = Math.min(SHADES.length - 1, Math.floor(t * SHADES.length))
-        toepfe[idx].push([screen(magic(a)), screen(magic(b))])
+        toepfe[idx].push(ia, ib)
     }
     // fern zuerst zeichnen, damit nahe (helle) Kanten obenauf liegen
     for (let s = SHADES.length - 1; s >= 0; s--) {
+        const topf = toepfe[s]
         ctx.strokeStyle = SHADES[s]
         ctx.beginPath()
-        for (const [a, b] of toepfe[s]) {
-            ctx.moveTo(a.x, a.y)
-            ctx.lineTo(b.x, b.y)
+        for (let j = 0; j < topf.length; j += 2) {
+            const ia = topf[j]
+            const ib = topf[j + 1]
+            ctx.moveTo(psx[ia], psy[ia])
+            ctx.lineTo(psx[ib], psy[ib])
         }
         ctx.stroke()
+    }
+
+    // Vertex-Punkte zuletzt, damit sie ueber den Kanten liegen — man soll
+    // sehen, was greifbar ist, nicht was davor gezeichnet wurde.
+    ctx.fillStyle = DOT_FARBE
+    const halb = DOT_GROESSE / 2
+    for (let i = 0; i < mesh.length; i++) {
+        if (psz[i] <= NAH_GRENZE) continue
+        ctx.fillRect(psx[i] - halb, psy[i] - halb, DOT_GROESSE, DOT_GROESSE)
     }
     // ponytail: setTimeout statt requestAnimationFrame — driftet unter Last
     // und laeuft im Hintergrundtab weiter. Upgrade auf rAF, falls das stoert.
