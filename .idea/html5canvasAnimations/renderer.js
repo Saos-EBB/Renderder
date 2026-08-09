@@ -79,7 +79,7 @@ let dz = 2.5;  // wo start ??
 // greifen auf ein noch nicht initialisiertes mesh zu.
 // cube waehrend der Edit-Mode-Arbeit: 8 Vertizes, jede Ecke einzeln sichtbar.
 // Auf einem 31k-Modell sieht man einen um zwei Pixel versetzten Punkt nicht.
-const model = await importModel("cube");
+const model = await importModel("stoneman");
 const fs = model.fs
 //----------------------------------------------------
 
@@ -184,11 +184,29 @@ zFenster()
 //   Wer hier mesh[i].z ohne dz ablegt, bekommt spaeter beim Ziehen eine um dz
 //   verschobene Skala.
 //
-// mesh wird bei jeder Drehung neu zugewiesen, die LAENGE aendert sich nie —
-// deshalb reicht es, die drei Puffer einmal anzulegen.
-const psx = new Float64Array(model.vs.length)
-const psy = new Float64Array(model.vs.length)
-const psz = new Float64Array(model.vs.length)
+// mesh wird bei jeder Drehung neu zugewiesen. Die LAENGE aendert sich nur beim
+// Einfuegen — deshalb let statt const: eine Float64Array kann nicht wachsen, sie
+// wird dann neu angelegt. Das passiert pro eingefuegtem Punkt einmal, nicht pro
+// Frame, also ist die Kopie billiger als jeden Frame ueber ein normales Array zu
+// laufen.
+let psx = new Float64Array(model.vs.length)
+let psy = new Float64Array(model.vs.length)
+let psz = new Float64Array(model.vs.length)
+// Auf mesh.length bringen. Der Inhalt wird zwar jeden Frame neu gerechnet, aber
+// zwischen dem Einfuegen und dem naechsten frame() liest schon jemand mit — der
+// frische Punkt saesse sonst fuer einen Frame auf 0,0.
+function puffernWachsen() {
+    if (psx.length >= mesh.length) return
+    const neuX = new Float64Array(mesh.length)
+    const neuY = new Float64Array(mesh.length)
+    const neuZ = new Float64Array(mesh.length)
+    neuX.set(psx)
+    neuY.set(psy)
+    neuZ.set(psz)
+    psx = neuX
+    psy = neuY
+    psz = neuZ
+}
 // Vertizes vor dieser Tiefe liegen hinter der Kamera. magic() wuerde sie
 // gespiegelt und riesig ins Bild werfen; beim Reinzoomen faehrt das Modell da
 // durch. Frueher stand die 0.01 nur in der Kantenschleife, jetzt pruefen
@@ -231,6 +249,16 @@ const GREIF_RADIUS = 12
 const GEGRIFFEN_FARBE = "#ff2d55"
 const GEGRIFFEN_GROESSE = 9
 
+// Der Anker ist der Punkt, von dem aus verbunden wird — getrennt von gegriffen,
+// und zwar mit Absicht: greift man zwischendurch eine andere Ecke, um sie zu
+// verschieben, soll der Ausgangspunkt fuers Verbinden stehen bleiben. Ein
+// gemeinsamer Zustand haette bei jedem Ziehen die Auswahl mitgenommen.
+// Gruen gegen das Rot des Gegriffenen, damit man beide gleichzeitig auseinander
+// halten kann.
+let anker = -1
+const ANKER_FARBE = "#3ddc84"
+const ANKER_GROESSE = 11
+
 // Maus-Position in LEINWAND-Koordinaten. Die uebrigen Handler rechnen mit
 // clientX/clientY, also viewport-relativ — fuer die Drehung egal, dort zaehlen
 // nur Deltas. Beim Picken sind es absolute Positionen, und die muessen im
@@ -238,11 +266,13 @@ const GEGRIFFEN_GROESSE = 9
 // Der zweite Faktor ist Pflicht und nicht Vorsicht: der Backing Store steht
 // fest auf 1200x1200, die Leinwand im Layout kann skaliert dargestellt sein.
 // Ohne ihn trifft der Test bei skalierter Anzeige daneben.
-function leinwandPos(e) {
+// Nimmt die Zahlen, nicht das Event: das Einfuegen per Tastatur hat keins, es
+// arbeitet mit der zuletzt gemerkten Cursorposition.
+function leinwandPos(clientX, clientY) {
     const rect = leinwand.getBoundingClientRect()
     return {
-        x: (e.clientX - rect.left) * (leinwand.width / rect.width),
-        y: (e.clientY - rect.top) * (leinwand.height / rect.height),
+        x: (clientX - rect.left) * (leinwand.width / rect.width),
+        y: (clientY - rect.top) * (leinwand.height / rect.height),
     }
 }
 
@@ -269,6 +299,63 @@ function vertexAn(x, y) {
     return treffer
 }
 
+// Tiefe fuer einen neu einzufuegenden Punkt: die des bildschirm-naechsten
+// Vertex, ohne Radiusgrenze. Ein Klick liefert nur x und y — die dritte Zahl
+// muss irgendwoher kommen, und "so tief wie das, woneben ich klicke" ist die
+// einzige Wahl, die ohne Vorauswahl auskommt.
+// Bewusst NICHT vertexAn() mit grossem Radius: dort gewinnt unter mehreren
+// Treffern der vorderste. Ueber die ganze Leinwand angewandt waere das immer
+// der kameranaechste Punkt des Modells, egal wo der Cursor steht. Hier zaehlt
+// allein der Bildschirmabstand, also eine eigene Schleife.
+// Liegt gar nichts vor der Kamera, faellt es auf dz zurueck — das ist die Ebene
+// durch den Modellursprung.
+function naechsteTiefe(x, y) {
+    let bestesD2 = Infinity
+    let tiefe = dz
+    for (let i = 0; i < mesh.length; i++) {
+        if (psz[i] <= NAH_GRENZE) continue
+        const dx = psx[i] - x
+        const dy = psy[i] - y
+        const d2 = dx * dx + dy * dy
+        if (d2 >= bestesD2) continue
+        bestesD2 = d2
+        tiefe = psz[i]
+    }
+    return tiefe
+}
+
+// Neuen Vertex an einer Leinwand-Position anlegen. Das ist der Hinweg
+// rueckwaerts: screen() und magic() umgekehrt, in dieser Reihenfolge.
+function vertexEinfuegen(lx, ly) {
+    const vz = naechsteTiefe(lx, ly)
+    // screen() umgekehrt. x_s = (x_n+1)/2 * W  ->  x_n = 2*x_s/W - 1
+    // y_s = (1 - (y_n+1)/2) * H  ->  y_n = 1 - 2*y_s/H. Das Minus faellt hier
+    // als vertauschte Reihenfolge an, es ist dasselbe Spiegeln wie beim Ziehen.
+    const nx = 2 * lx / leinwand.width - 1
+    const ny = 1 - 2 * ly / leinwand.height
+    // magic() umgekehrt: dort wird durch die Tiefe geteilt, hier multipliziert.
+    // z geht MINUS dz zurueck, weil translate_z() es auf dem Hinweg addiert —
+    // vz ist die Tiefe vor der Kamera, mesh haelt sie ohne den Kameraabstand.
+    mesh.push({x: nx * vz, y: ny * vz, z: vz - dz})
+    const i = mesh.length - 1
+
+    puffernWachsen()
+    // Den frischen Punkt gleich selbst in den Cache schreiben statt auf den
+    // naechsten frame() zu warten: er ist ab sofort Anker und wird gezeichnet,
+    // und die Werte sind hier ohne Rechnung bekannt — nach genau diesen
+    // Bildschirmkoordinaten wurde er ja konstruiert.
+    psx[i] = lx
+    psy[i] = ly
+    psz[i] = vz
+
+    anker = i
+    // Die z-Spanne kann sich durch den neuen Punkt geweitet haben, sonst
+    // klemmen seine Kanten spaeter auf der aeussersten Farbstufe. Einmal pro
+    // Einfuegen ist das billig — beim Ziehen bleibt es bewusst aus, das feuert
+    // bis zu 120x pro Sekunde.
+    zFenster()
+}
+
 // --- Maussteuerung ---
 let ziehen = false
 let letzte = {x: 0, y: 0}
@@ -277,6 +364,13 @@ let letzte = {x: 0, y: 0}
 // wuerde, sobald die Leinwand skaliert dargestellt ist. Das Ziehen braucht
 // dagegen dasselbe Mass wie psx/psy, sonst passt die Umrechnung nach NDC nicht.
 let letzteLein = {x: 0, y: 0}
+// Letzte bekannte Cursorposition, roh wie sie das Event liefert. Das Einfuegen
+// per Tastatur braucht eine Position, und ein keydown hat keine.
+// Roh gemerkt und erst beim Einfuegen umgerechnet: leinwandPos() ruft
+// getBoundingClientRect() auf, und das bei jeder Mausbewegung zu tun hiesse,
+// den Browser bis zu 120x pro Sekunde nach dem Layout zu fragen — fuer eine
+// Zahl, die fast immer weggeworfen wird.
+let mausClient = {x: 0, y: 0}
 // aufgelaufene Drehung. mousemove feuert bis ~120x/s, das Mesh hat aber bis zu
 // 110k Vertizes — pro Event drehen hiesse hunderttausende Objekte pro Sekunde
 // neu allozieren. Hier nur Winkel addieren, gedreht wird einmal pro Frame.
@@ -306,23 +400,37 @@ function achseWechseln() {
 function editModeUmschalten() {
     editMode = !editMode
     gegriffen = -1
+    anker = -1
 }
-// Beide Funktionen liegen doppelt, Daumentaste und Tastatur, und zwar nicht aus
-// Bequemlichkeit: WebStorms eingebaute Vorschau laeuft auf JCEF und reicht die
-// Daumentasten nicht bis zur Seite durch. In Brave arbeiten die Maustasten, im
-// Preview "a" fuer die Achse und "e" fuer den Edit-Mode. Die Tasten sind die
-// Wahrheit, die Maustasten die Zugabe.
+// Alle drei Funktionen liegen doppelt, Daumentaste und Tastatur, und zwar nicht
+// aus Bequemlichkeit: WebStorms eingebaute Vorschau laeuft auf JCEF und reicht
+// die Daumentasten nicht bis zur Seite durch. In Brave arbeiten die Maustasten,
+// im Preview "a" fuer die Achse, "e" fuer den Edit-Mode und "i" fuers Einfuegen.
+// Die Tasten sind die Wahrheit, die Maustasten die Zugabe.
 window.addEventListener("keydown", (e) => {
     if (e.key === "a" || e.key === "A") achseWechseln()
     if (e.key === "e" || e.key === "E") editModeUmschalten()
+    if (editMode && (e.key === "i" || e.key === "I")) {
+        const p = leinwandPos(mausClient.x, mausClient.y)
+        vertexEinfuegen(p.x, p.y)
+    }
 })
 leinwand.addEventListener("mousedown", (e) => {
-    // Daumentaste schaltet die Schnittachse weiter. In der DOM-Zaehlung ist das
-    // button 3; die Maus selbst nennt sie meist BT4, weil sie ab 1 zaehlt und
-    // die Radklicks mitzaehlt.
+    // Die vordere Daumentaste. In der DOM-Zaehlung ist das button 3; die Maus
+    // selbst nennt sie meist BT4, weil sie ab 1 zaehlt und die Radklicks
+    // mitzaehlt. Sie hat je nach Modus zwei Bedeutungen: im Betrachten schaltet
+    // sie wie bisher die Schnittachse weiter, im Edit-Mode setzt sie einen
+    // Punkt. Zwei Aufgaben auf einer Taste, weil beide dort hingehoeren, wo man
+    // gerade ist — die Achse braucht man beim Editieren nicht, und einen Punkt
+    // setzen kann man ausserhalb nicht.
     if (e.button === 3) {
         e.preventDefault()      // sonst navigiert der Browser damit zurueck
-        achseWechseln()
+        if (editMode) {
+            const p = leinwandPos(e.clientX, e.clientY)
+            vertexEinfuegen(p.x, p.y)
+        } else {
+            achseWechseln()
+        }
         return
     }
     // Die zweite Daumentaste war bisher nur geschluckt. auxclick faengt sie
@@ -340,7 +448,7 @@ leinwand.addEventListener("mousedown", (e) => {
     // waere das Modell im Edit-Mode festgenagelt, und an Ecken auf der
     // Rueckseite kaeme man nie heran.
     if (editMode) {
-        const p = leinwandPos(e)
+        const p = leinwandPos(e.clientX, e.clientY)
         gegriffen = vertexAn(p.x, p.y)
         if (gegriffen !== -1) {
             // ziehen wird auch hier gesetzt: das Geruest ist dasselbe, nur
@@ -398,12 +506,15 @@ leinwand.addEventListener("wheel", (e) => {
 // sobald du beim Ziehen aus der Leinwand rausfaehrst
 window.addEventListener("mouseup", () => { ziehen = false })
 window.addEventListener("mousemove", (e) => {
+    // Vor dem ziehen-Test: die Position wird auch gebraucht, wenn gerade nichts
+    // gezogen wird — "i" fuegt dort ein, wo der Cursor zuletzt stand.
+    mausClient = {x: e.clientX, y: e.clientY}
     if (!ziehen) return
     // Haengt eine Ecke am Cursor, gehoert die Bewegung ihr und nicht der
     // Ansicht. gegriffen !== -1 kann es nur im Edit-Mode geben, das Umschalten
     // setzt den Index zurueck.
     if (gegriffen !== -1) {
-        const p = leinwandPos(e)
+        const p = leinwandPos(e.clientX, e.clientY)
         const dPixelX = p.x - letzteLein.x
         const dPixelY = p.y - letzteLein.y
         letzteLein = p
@@ -496,11 +607,20 @@ function frame() {
             if (psz[i] <= NAH_GRENZE) continue
             ctx.fillRect(psx[i] - halb, psy[i] - halb, DOT_GROESSE, DOT_GROESSE)
         }
-        // Der gegriffene Vertex danach und in Rot: groesser, damit man ihn
-        // zwischen den ockernen Punkten findet, und obenauf, damit ein
+        // Der Anker als groesster Fleck und ganz unten in der Reihenfolge: der
+        // gegriffene Punkt darf ihn ueberdecken, wenn beide derselbe sind —
+        // was man anfasst, ist die dringendere Information.
+        // Die Tiefenpruefung wie bei den Punkten: dreht man ihn nach hinten
+        // durch die Kamera, sind psx/psy Muell und der Fleck landet irgendwo.
+        if (anker !== -1 && psz[anker] > NAH_GRENZE) {
+            const aHalb = ANKER_GROESSE / 2
+            ctx.fillStyle = ANKER_FARBE
+            ctx.fillRect(psx[anker] - aHalb, psy[anker] - aHalb,
+                ANKER_GROESSE, ANKER_GROESSE)
+        }
+        // Der gegriffene Vertex danach und in Rot: groesser als die ockernen
+        // Punkte, damit man ihn zwischen ihnen findet, und obenauf, damit ein
         // benachbarter Punkt ihn nicht verdeckt.
-        // Die Tiefenpruefung auch hier — dreht man die Ecke nach hinten durch
-        // die Kamera, sind psx/psy Muell und der Fleck landet irgendwo.
         if (gegriffen !== -1 && psz[gegriffen] > NAH_GRENZE) {
             const gHalb = GEGRIFFEN_GROESSE / 2
             ctx.fillStyle = GEGRIFFEN_FARBE

@@ -1,5 +1,41 @@
 # Build Log
 
+## 2026-08-10 — feat(renderer): Vertex einfügen per BT4 / Taste „i"
+**Was:** Step 5. Die vordere Daumentaste (DOM `button 3`, auf der Maus BT4) bekommt zwei
+Bedeutungen: im Betrachten schaltet sie wie bisher die Schnittachse, im Edit-Mode setzt
+sie einen neuen Vertex an den Cursor. Beides dort, wo man es braucht — die Achse braucht
+man beim Editieren nicht, und einen Punkt setzen kann man ausserhalb nicht. Taste **`i`**
+liegt daneben, aus demselben Grund wie `a` und `e`: JCEF reicht die Daumentasten nicht
+durch (`docs/errors.md`), ohne die Taste wäre das Feature im WebStorm-Preview nicht
+testbar. Dafür merkt sich `mousemove` die rohe Cursorposition — roh, weil `leinwandPos()`
+`getBoundingClientRect()` ruft und den Browser sonst bis zu 120×/s nach dem Layout fragte,
+für eine Zahl die fast immer weggeworfen wird.
+**Die Tiefe** kommt vom bildschirm-nächsten Vertex (`naechsteTiefe()`). Ein Klick liefert
+nur x und y, die dritte Zahl muss irgendwoher. Bewusst **nicht** `vertexAn()` mit grossem
+Radius: dort gewinnt unter mehreren Treffern der vorderste — über die ganze Leinwand
+angewandt wäre das immer der kameranächste Punkt des Modells, egal wo der Cursor steht.
+Zwei Regeln, zwei Funktionen. Fallback `dz`, falls nichts vor der Kamera liegt.
+**Der Rückweg** ist `screen()` und `magic()` umgekehrt: `nx = 2·lx/W − 1`,
+`ny = 1 − 2·ly/H` (dasselbe Spiegeln wie beim Ziehen), dann `x = nx·vz`, `y = ny·vz`,
+`z = vz − dz` — **minus** `dz`, weil `translate_z()` es auf dem Hinweg addiert. Rundlauf
+gegen die echten Formeln durchgerechnet, grösster Fehler 2,2e−16 über Cube-Ecke,
+car-Vertex, Ursprung und einen Punkt bei Tiefe 0,5.
+**Puffer:** `psx/psy/psz` sind Float64Arrays und können nicht wachsen, also `const` → `let`
+plus `puffernWachsen()`, die neu alloziert und kopiert. Einmal pro eingefügtem Punkt, nicht
+pro Frame — billiger als jeden Frame über normale Arrays zu laufen. Der frische Punkt
+schreibt seine Cache-Werte gleich selbst, sonst sässe er bis zum nächsten `frame()` auf 0,0.
+`zFenster()` läuft einmal nach, sonst klemmen die Kanten des neuen Punkts später auf der
+äussersten Farbstufe; beim Ziehen bleibt das bewusst aus, das feuert 120×/s.
+**Anker** (grün) ist getrennt von `gegriffen` (rot): greift man zwischendurch eine andere
+Ecke zum Verschieben, soll der Ausgangspunkt fürs Verbinden stehen bleiben. Ein
+eingefügter Punkt wird sofort Anker. Beide werden beim Moduswechsel zurückgesetzt.
+**Nicht gebaut:** kein Verbinden (Step 6) — der neue Punkt hängt an keiner Kante und ist
+vorerst ein einzelner Fleck, greifbar und ziehbar wie jeder andere. Kein Löschen, kein
+Undo (Reload ist der Reset), kein Einfügen auf einer bestehenden Kante, kein Snapping,
+keine Vorschau vor dem Setzen. `model.vs` wächst **nicht** mit: für einen eingefügten
+Punkt gibt es keine Modellraum-Position, weil Weg A keinen Rückweg der Rotation hat.
+Cutaway und Export sehen ihn deshalb nie — dieselbe Drift wie in Step 4, nur grösser.
+
 ## 2026-08-09 — feat(renderer): Vertex ziehen — Edit-Mode fertig
 **Was:** Step 4 von Weg A, der Schluss. Die gegriffene Ecke folgt der Maus, das Mesh
 verformt sich live, alle Kanten an der Ecke wandern mit (`kanten` zeigt auf den Index,
