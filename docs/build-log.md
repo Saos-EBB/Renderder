@@ -1,5 +1,30 @@
 # Build Log
 
+## 2026-08-10 — feat(renderer): Strg+S speichert den Arbeitsstand als .js
+**Was:** Step 9. Strg+S schreibt den Stand als `<modell>_edit.js` im Format von `modelle/` —
+dieselbe Form wie `cube.js` samt `export default`, also direkt wieder ladbar. Der Browser
+kann nur in den Download-Ordner schreiben, nie zurück nach `modelle/`: Datei dorthin legen,
+Namen in `modelle.js` eintragen, dann kennt `importModel` sie. `preventDefault()` ist
+Pflicht, sonst legt der Browser seinen „Seite speichern"-Dialog darüber und schreibt das
+HTML statt des Modells. Absichtlich nicht auf den Edit-Mode beschränkt, die Änderungen
+bleiben ja auch nach dem Verlassen. Der Modellname steht jetzt in `MODELL_NAME`, weil
+Dateiname und Bezeichner in der Datei ihn brauchen.
+**Manuelle Kanten gehen als Zweier-Einträge in `fs`.** Das kennt das Format und
+`kantenBauen()` liest sie wieder ein — nach dem Neuladen sind sie richtige Modellkanten und
+machen den Cutaway mit. Die Einschränkung aus Step 6 löst sich beim Rundlauf also auf.
+**Was man der Datei ansehen muss:** `vs` ist `mesh`, also die Geometrie in ihrer *jetzigen
+Lage*. Die Orientierung steckt in Weg A in den Vertizes selbst, es gibt keine getrennte
+Rotation zum Herausrechnen — und beim Laden legt `renderer.js` sein Preset (5.5 / 4.678)
+nochmal obendrauf. Ein gespeichertes Modell erscheint beim Wiederladen deshalb gedreht.
+Sauber trennen liesse sich das erst mit einer Matrix, in Weg B.
+Koordinaten auf 6 Stellen, Nullen am Ende weg (`String(+n.toFixed(6))`) — die 17 Stellen aus
+der Rotation machen die Datei sonst um ein Vielfaches grösser. Ausgabe gegen den Cube mit
+eingefügtem Punkt und zwei Kanten erzeugt und geprüft: 9 `vs`, 8 `fs`-Zeilen, grösster Index
+8, alle gültig, 623 Byte.
+**Nicht gebaut:** kein Dateiname-Dialog, kein Zeitstempel (der Browser nummeriert Duplikate
+selbst), kein automatischer Eintrag in `modelle.js`, kein .obj/.stl, kein Speichern nur der
+Auswahl, kein Herausrechnen der Rotation.
+
 ## 2026-08-10 — feat(renderer): Arbeitskopie beim Betreten des Edit-Mode
 **Was:** Step 8. Beim Einschalten des Edit-Mode wird der Stand gesichert, geändert wird ab
 da an der Kopie. Beim Verlassen bleiben die Änderungen stehen — ein versehentliches `e`

@@ -79,7 +79,10 @@ let dz = 2.5;  // wo start ??
 // greifen auf ein noch nicht initialisiertes mesh zu.
 // cube waehrend der Edit-Mode-Arbeit: 8 Vertizes, jede Ecke einzeln sichtbar.
 // Auf einem 31k-Modell sieht man einen um zwei Pixel versetzten Punkt nicht.
-const model = await importModel("cube");
+// Name in eine Konstante, weil das Speichern ihn braucht: die Datei heisst
+// danach, und der Bezeichner darin auch.
+const MODELL_NAME = "cube"
+const model = await importModel(MODELL_NAME);
 const fs = model.fs
 //----------------------------------------------------
 
@@ -466,12 +469,72 @@ function editModeUmschalten() {
     anker = -1
     if (editMode) schnappschussNehmen()
 }
+// --- Speichern ---
+// Schreibt den Arbeitsstand als .js im Format von modelle/ — dieselbe Form wie
+// cube.js, also direkt wieder ladbar. Der Browser kann nur in den
+// Download-Ordner schreiben, nie zurueck nach modelle/: die Datei dort
+// hinlegen und den Namen in modelle.js eintragen, dann kennt importModel sie.
+//
+// Zwei Dinge, die man der Datei ansehen muss:
+// - vs ist mesh, also die Geometrie in ihrer JETZIGEN Lage. Die Orientierung
+//   steckt in Weg A in den Vertizes selbst, es gibt keine getrennte Rotation
+//   zum Herausrechnen. Beim Laden legt renderer.js ausserdem sein Preset
+//   (5.5 / 4.678) obendrauf — das gespeicherte Modell erscheint also gedreht.
+//   Sauber trennen liesse sich das erst mit einer Matrix, in Weg B.
+// - Die manuellen Kanten gehen als Zweier-Eintraege in fs. Das kennt das Format
+//   (cube.js hat [0,4] neben den Vierecken) und kantenBauen() liest sie wieder
+//   ein. Nach dem Neuladen sind sie damit richtige Modellkanten und machen den
+//   Cutaway mit — die Einschraenkung aus Step 6 loest sich beim Rundlauf auf.
+const SPEICHER_STELLEN = 6
+function zahl(n) {
+    // toFixed schneidet die 17 Stellen ab, die aus der Rotation herausfallen,
+    // das + macht daraus wieder eine Zahl und wirft die Nullen am Ende weg:
+    // 0.500000 -> 0.5. Sonst waere die Datei ein Vielfaches so gross.
+    return String(+n.toFixed(SPEICHER_STELLEN))
+}
+function modellSpeichern() {
+    const zeilen = []
+    zeilen.push(`const ${MODELL_NAME}_edit = {`)
+    zeilen.push(`    vs :[`)
+    for (const v of mesh) {
+        zeilen.push(`    {x: ${zahl(v.x)}, y: ${zahl(v.y)}, z: ${zahl(v.z)} },`)
+    }
+    zeilen.push(`    ],`)
+    zeilen.push(`    fs : [`)
+    for (const f of fs) zeilen.push(`    [${f.join(", ")}],`)
+    for (const [a, b] of extraKanten) zeilen.push(`    [${a}, ${b}],`)
+    zeilen.push(`        ]`)
+    zeilen.push(`};`)
+    zeilen.push(`export default ${MODELL_NAME}_edit;`)
+    zeilen.push(``)
+
+    // Blob + a[download] ist der einzige Weg, aus einer Seite heraus eine Datei
+    // abzulegen. revoke danach, sonst haelt der Tab den Inhalt bis zum Neuladen
+    // im Speicher — bei einem 100k-Modell merkt man das.
+    const blob = new Blob([zeilen.join("\n")], {type: "text/javascript"})
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${MODELL_NAME}_edit.js`
+    a.click()
+    URL.revokeObjectURL(url)
+}
+
 // Alle drei Funktionen liegen doppelt, Daumentaste und Tastatur, und zwar nicht
 // aus Bequemlichkeit: WebStorms eingebaute Vorschau laeuft auf JCEF und reicht
 // die Daumentasten nicht bis zur Seite durch. In Brave arbeiten die Maustasten,
 // im Preview "a" fuer die Achse, "e" fuer den Edit-Mode und "i" fuers Einfuegen.
 // Die Tasten sind die Wahrheit, die Maustasten die Zugabe.
 window.addEventListener("keydown", (e) => {
+    // Strg+S vor allem anderen, und preventDefault ist Pflicht: sonst legt der
+    // Browser seinen "Seite speichern"-Dialog darueber und schreibt das HTML
+    // statt des Modells. Absichtlich nicht auf den Edit-Mode beschraenkt — die
+    // Aenderungen bleiben ja auch, wenn man ihn verlassen hat.
+    if (e.ctrlKey && (e.key === "s" || e.key === "S")) {
+        e.preventDefault()
+        modellSpeichern()
+        return
+    }
     if (e.key === "a" || e.key === "A") achseWechseln()
     if (e.key === "e" || e.key === "E") editModeUmschalten()
     if (editMode && (e.key === "i" || e.key === "I")) {
