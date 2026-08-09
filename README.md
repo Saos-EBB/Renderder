@@ -9,8 +9,8 @@ von **Tsoding** — die „magic formula" ist die Perspektivdivision `x/z, y/z`,
 die im Code bis heute so heißt. Der erste
 Wurf war im Wesentlichen sein Code aus dem Video. Alles danach ist selbst
 gebaut: Maussteuerung, Tiefen-Shading, dynamisches Nachladen der Modelle und
-die Werkzeugkette, mit der aus einer heruntergeladenen .obj oder .stl ein
-Modell wird, das der Renderer verkraftet.
+die Werkzeugkette, mit der aus einer heruntergeladenen .obj oder .stl — oder
+aus einem CT-Datensatz — ein Modell wird, das der Renderer verkraftet.
 
 ## Features
 
@@ -36,21 +36,30 @@ Modell wird, das der Renderer verkraftet.
 - `.idea/html5canvasAnimations/renderer.js` — Renderer + Maussteuerung
 - `.idea/html5canvasAnimations/modelle.js` — Namensliste + `importModel`
 - `.idea/html5canvasAnimations/modelle/` — Vertex/Face-Daten der 3D-Modelle
+- `.idea/html5canvasAnimations/2model/` — die Konverter ins Modellformat
+- `.idea/html5canvasAnimations/cutInHalf.js` — Dezimierer, siehe Werkzeuge
 - `.idea/html5canvasAnimations/index.html` — Einstiegspunkt
+- `docs/build-log.md` — was wann warum gebaut wurde, ein Eintrag je Commit
+- `docs/errors.md` — Fehler, die Zeit gekostet haben, mit Ursache und Fix
+- `docs/performance.md` — offene Befunde zur Renderer-Geschwindigkeit
 
 Modell wechseln: Name in `renderer.js` bei `importModel(...)` einsetzen. In die
 Liste eingetragen haben sich die Konverter schon selbst.
 
+Die grossen Zwischenstufen — `stlFiles/`, `cutStlFiles/`, `objFiles/` — sind
+bewusst nicht im Repo. Getrackt ist nur, was der Renderer lädt.
+
 ## Werkzeuge
 
-Drei Node-Skripte neben dem Renderer. Alle nach demselben Muster: Konfiguration
-als Konstanten oben in der Datei, keine Kommandozeilenargumente — Datei in
-WebStorm öffnen, grüner Pfeil.
+Vier Skripte: die Konverter in `2model/`, `cutInHalf.js` neben dem Renderer.
+Alle nach demselben Muster: Konfiguration als Konstanten oben in der Datei,
+keine Kommandozeilenargumente — Datei in WebStorm öffnen, grüner Pfeil.
 
 | Skript | macht |
 |---|---|
-| `obj2model.js` | `.obj` → `.js` im Modellformat |
-| `stl2model.js` | `.stl` → `.js` im Modellformat (binär und ASCII, weldet Vertices) |
+| `2model/obj2model.js` | `.obj` → `.js` im Modellformat |
+| `2model/stl2model.js` | `.stl` → `.js` im Modellformat (binär und ASCII, weldet Vertices) |
+| `2model/dcm2stl.py` | CT-Serie (`.dcm`) → `.stl` per Knochen-Schwellwert |
 | `cutInHalf.js` | `.stl` → kleinere `.stl` (Vertex-Clustering) |
 
 Der Renderer schafft ungefähr 40.000 Vertizes. Echte Downloads haben leicht das
@@ -58,7 +67,16 @@ Zwanzigfache, deshalb die Kette:
 
 ```
 grosse.stl  →  cutInHalf.js  →  kleine.stl  →  stl2model.js  →  modell.js
+
+.dcm-Serie  →  dcm2stl.py  →  grosse.stl  →  weiter wie oben
 ```
+
+`dcm2stl` ist als einziges Werkzeug Python statt Node — reine Standard-
+bibliothek, kein `pip install`. Ein CT ist in Hounsfield-Einheiten kalibriert,
+Knochen liegt über ~300 HU; daraus baut Marching Tetrahedra eine geschlossene
+Oberfläche. Der Ordner muss genau **eine** Serie enthalten, sonst bricht das
+Skript ab. Für MR taugt es nicht: dort sind die Grauwerte nicht kalibriert und
+ein fester Schwellwert findet keinen Knochen.
 
 `obj2model` und `stl2model` nehmen eine einzelne Datei oder einen ganzen Ordner,
 schreiben nach `modelle/` und tragen den Namen selbst in `modelle.js` ein. Der

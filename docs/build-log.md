@@ -1,5 +1,43 @@
 # Build Log
 
+## 2026-08-09 — refactor(tools): Konverter in eigenen 2model-Ordner
+**Was:** `obj2model.js` und `stl2model.js` liegen jetzt in
+`html5canvasAnimations/2model/` statt neben dem Renderer. Reines Verschieben, Git
+erkennt beides als Rename, kein Byte am Inhalt geändert. Funktional folgenlos: beide
+Skripte arbeiten mit absoluten Pfaden für `AUSGABE_ORDNER` und `MODELLE_JS`, es gibt
+also keinen relativen Bezug, der sich mitverschiebt. Kein Code referenziert die
+Dateien; die Treffer in `cutInHalf.js` und im Build-Log sind Fließtext.
+**Nicht gebaut:** kein gemeinsames Modul für die doppelten Hilfsfunktionen — die
+liegen jetzt zwar nebeneinander, sind aber weiterhin zwei Kopien.
+
+## 2026-08-09 — feat(tools): dcm2stl, CT-Serie zu .stl
+**Was:** Neues Werkzeug `2model/dcm2stl.py`. Es füllt die Lücke vor der Kette: eine
+`.dcm` ist ein Stapel Graustufenbilder, kein Modell, und bisher fing alles erst bei
+einer fertigen `.stl` an. Schwellwert 300 HU trennt Knochen (CT ist in Hounsfield
+kalibriert), danach Marching Tetrahedra. Bewusst nicht Marching Cubes: dort braucht
+es eine Tabelle mit 256 Fällen, von denen mehrere mehrdeutig sind und bei falscher
+Wahl Löcher hinterlassen. Ein Tetraeder hat vier Ecken, keine Mehrdeutigkeit, die
+Fälle stehen im Code statt in einer Tabelle, und weil alle Würfel dieselbe
+Raumdiagonale teilen, passen Nachbarzellen lückenlos. Preis rund doppelt so viele
+Dreiecke — egal, `cutInHalf` dampft danach ohnehin ein und der Renderer wirft die
+Normalen weg. Verkleinerung in xy per **Maximum** statt Mittelwert, weil die
+Schädelkalotte nur ein bis zwei Voxel dick ist und ein Mittelwert Löcher reisst.
+Randzellen werden über Bitmasken gesucht (eine Schicht = ein Integer mit B·H Bit,
+acht Ecken = acht Verschiebungen), sonst wären es Millionen Python-Iterationen; so
+läuft eine Serie in 2–3 s. Ein Zusammenhangs-Filter behält nur die grösste Struktur
+und wirft damit den Patiententisch weg (beim Thorax 16,5 % der Voxel in 176
+Fragmenten). Python statt Node, weil kein Node auf der Maschine liegt; reine
+Standardbibliothek, kein numpy, kein pydicom. Geprüft an zwei Serien aus
+`~/Schreibtisch/LookAtMe`: Thorax 2001 (107 Schichten → 202.360 Dreiecke) und Kopf
+2003 (32 Schichten → 329.498). Der Querschnitt zeigt beim Kopf einen hohlen Ring,
+also äussere und innere Schädeltafel getrennt — echter Knochen, keine Hautoberfläche.
+Der Serien-Schutz wurde gegen einen Mischordner getestet und bricht ab.
+**Nicht gebaut:** kein MR (Grauwerte dort nicht kalibriert, fester Schwellwert
+sinnlos), kein Ordnermodus über mehrere Serien, kein Aufteilen einer Studie nach
+`SeriesInstanceUID` — das Skript meldet nur, dass es nötig wäre. Keine Glättung,
+kein Füllen von Löchern, keine Dezimierung (bleibt bei `cutInHalf`), keine
+komprimierten Transfer Syntaxen (JPEG/JPEG2000/RLE brechen mit Meldung ab).
+
 ## 2026-08-09 — fix(repo): Startmodell zeigte auf eine Datei, die nicht im Repo liegt
 **Was:** `renderer.js` lud beim Start `duoOG` — die Datei ist aber 41 MB und war nie
 committet, ein frischer Clone crashte also sofort beim Modul-Import. Startmodell auf
