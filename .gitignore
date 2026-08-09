@@ -20,3 +20,19 @@ obj2model/
 # Undezimiertes Original, 41 MB — vier Mal groesser als das groesste getrackte
 # Modell und weit ueber dem, was der Renderer packt. Bleibt lokal.
 .idea/html5canvasAnimations/modelle/duoOG.js
+
+# Undezimierte Ausgabe von dcm2stl, und skull_g128 aus derselben Ecke: alle
+# deutlich ueber den ~40.000 Vertizes, die der Renderer packt, also nicht
+# benutzbar ohne vorher cutInHalf. Zusammen 90 MB — was einmal in der History
+# liegt, bekommt man nur noch mit filter-repo und Force-Push ueber alles wieder
+# raus, deshalb hier VOR dem ersten Commit. Lokal bleiben sie ladbar, und in
+# modelle.js duerfen sie stehenbleiben, genau wie duoOG.
+# Vertex-Zahlen, Stand 2026-08-09: SegmentCraneo00 536.706, ct2003_kopf_CT3
+# 145.244, ct2003_kopf_CT2 142.132, skull_g128 105.915, ct2001_thorax 76.061.
+# Kein Kommentar hinter die Pfade schreiben — # gilt nur am Zeilenanfang,
+# sonst wird der Text Teil des Musters und die Regel greift nicht mehr.
+.idea/html5canvasAnimations/modelle/SegmentCraneo00.js
+.idea/html5canvasAnimations/modelle/ct2003_kopf_CT3.js
+.idea/html5canvasAnimations/modelle/ct2003_kopf_CT2.js
+.idea/html5canvasAnimations/modelle/skull_g128.js
+.idea/html5canvasAnimations/modelle/ct2001_thorax.js

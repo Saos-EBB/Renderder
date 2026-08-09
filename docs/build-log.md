@@ -1,5 +1,23 @@
 # Build Log
 
+## 2026-08-09 — chore(repo): fünf zu grosse Modelle in .gitignore
+**Was:** `SegmentCraneo00`, `ct2003_kopf_CT2/CT3`, `skull_g128` und `ct2001_thorax`
+stehen jetzt namentlich in `.gitignore`, zusammen 90 MB. Anlass: ein `git add .` hatte
+sie samt sieben weiterer Modelle vorgemerkt — 105 MB in ein Repo, dessen `.git` 35 MB
+gross ist, `SegmentCraneo00.js` allein 47 MB. Alle fünf liegen ausserdem weit über den
+~40.000 Vertizes, die der Renderer packt (536.706 bis 76.061), sind also ohne einen
+Lauf durch `cutInHalf` gar nicht benutzbar. Dieselbe Begründung wie bei
+`pochita128/256`, `forMax00` und `duoOG`, deshalb derselbe Mechanismus: namentlich
+aufgezählt statt Muster, weil den Dateinamen nicht anzusehen ist, welche gemeint sind.
+Wichtig war der Zeitpunkt — vor dem ersten Commit. Was einmal in der History liegt,
+geht nur noch mit `filter-repo` und einem Force-Push über alles wieder raus.
+Geprüft mit `git check-ignore`: die fünf greifen, die übrigen sieben bleiben sichtbar.
+**Nicht gebaut:** die zwei Grenzfälle `Duo_Baldurs_Gate_g128` (49.734) und
+`Segmentation_craneo_camilo_g128` (50.076) sind bewusst NICHT eingetragen — knapp über
+der Grenze, aber noch lauffähig, das ist eine Entscheidung für später. Sie bleiben
+vorerst ungetrackt. Keins der Modelle wurde aus `modelle.js` entfernt; wie bei `duoOG`
+bleiben sie gelistet und damit lokal ladbar.
+
 ## 2026-08-09 — refactor(tools): Konverter in eigenen 2model-Ordner
 **Was:** `obj2model.js` und `stl2model.js` liegen jetzt in
 `html5canvasAnimations/2model/` statt neben dem Renderer. Reines Verschieben, Git
