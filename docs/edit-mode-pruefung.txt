@@ -1,0 +1,202 @@
+EDIT-MODE — PRUEFUNG DES PLANS GEGEN DIE CODEBASE
+=================================================
+Stand 2026-08-09. Antworten auf die acht Fragen aus dem Edit-Mode-Plan
+(Vertices picken & ziehen). Alles am tatsaechlichen Code verifiziert, nichts
+geaendert. Einzige relevante Datei: .idea/html5canvasAnimations/renderer.js
+
+Vorweg: roadmap.md gibt es im Repo nicht. In docs/ liegen nur build-log.md,
+errors.md und performance.md. Falls die Roadmap woanders lebt, ist sie hier
+nicht beruecksichtigt.
+
+
+1. screen() — y wird gespiegelt, Faktoren sind PRO ACHSE
+--------------------------------------------------------
+renderer.js:12-20
+
+    x: (p.x + 1) / 2 * leinwand.width,
+    y: (1 - (p.y + 1) / 2) * leinwand.height,
+
+Ausmultipliziert:  x_s = W/2 + x_n*(W/2)   und   y_s = H/2 - y_n*(H/2)
+
+- y gespiegelt: JA. Skala ist -H/2.
+- KEIN gemeinsamer Faktor. leinwand.width und leinwand.height sind zwei
+  getrennte Werte (renderer.js:2-3). Aktuell beide 1200 — aber width stand bis
+  vor Kurzem auf 1300. Ein einzelner "scale" im Rueckweg wuerde also still
+  brechen, sobald die Leinwand nicht quadratisch ist.
+- Der Faktor lebt NUR inline in screen(), es gibt keine Konstante dafuer.
+
+Fuer Rueckweg-Schritt 1:
+
+    dNdcX =  2 * dPixelX / leinwand.width
+    dNdcY = -2 * dPixelY / leinwand.height      // Minus ist Pflicht
+
+
+2. R EXISTIERT NICHT — und das kippt die Architektur-Annahme
+------------------------------------------------------------
+renderer.js:34-43 ist rotate(v, angle, [a,b]): dreht EINEN Vertex in einer
+Ebene, gibt ein neues Objekt zurueck. Keine Matrix, nirgends.
+
+Entscheidender ist renderer.js:86 und :261
+
+    let mesh = model.vs.map(v => rotate(rotate(v, 5.5, ["x","z"]), 4.678, ["x","y"]))
+    ...
+    mesh = mesh.map(v => rotate(rotate(v, drehY, ["x","z"]), drehX, ["y","z"]))
+    drehX = 0; drehY = 0
+
+mesh wird AUS SICH SELBST weitergedreht, und die Winkel werden danach auf 0
+zurueckgesetzt. Es gibt also:
+
+  - keine Matrix zum Transponieren,
+  - KEINE gespeicherten Gesamtwinkel zum Negieren,
+  - die aufgelaufene Orientierung existiert ausschliesslich implizit in mesh.
+
+Damit stimmt die Praemisse "Kopie-vs bleiben saubere Modell-Koords, die Anzeige
+rotiert" NICHT: mesh IST die gedrehte Geometrie, und model.vs wird nach Zeile 86
+nie wieder daraus abgeleitet.
+
+Folge fuer Schritt 4: wenn du mesh[i] editierst, brauchst du Rueckweg-Schritt 3
+ueberhaupt nicht — der Vertex liegt schon im selben Raum, in dem das Delta
+ausgerechnet wurde. Schritte 1 und 2 reichen.
+Der Haken: model.vs laeuft dann auseinander, und schwerpunkt()
+(renderer.js:100-104) liest model.vs[i][ACHSE] — der Cutaway wuerde weiter auf
+der UNEDITIERTEN Geometrie rechnen. Soll die Aenderung in model.vs landen (fuer
+Export), braucht es eine echte Matrix. Siehe Empfehlung am Ende.
+
+
+3. PROJEKTIONS-LOOP — es gibt KEINE zentrale Vertex-Stelle
+-----------------------------------------------------------
+renderer.js:277-289. Die Schleife laeuft ueber kanten, also ueber Index-PAARE,
+und projiziert pro Kante beide Endpunkte:
+
+    for (const [ia, ib] of kanten) {
+        const a = translate_z(mesh[ia], dz)
+        ...
+        toepfe[idx].push([screen(magic(a)), screen(magic(b))])
+    }
+
+Ein Vertex wird dadurch einmal PRO ANLIEGENDER KANTE projiziert — bei
+hand1_g128 192.882 Projektionen fuer 31.516 Vertizes, Faktor 6,1 (steht als F2
+in docs/performance.md). Der {sx,sy,z}-Cache laesst sich hier NICHT billig
+mitschreiben; jeder Vertex wuerde sechsmal geschrieben.
+
+Der Cache braucht einen EIGENEN Durchlauf ueber die Vertizes vor der
+Kantenschleife. Das ist exakt Fix F1+F2 aus docs/performance.md —
+Checklistenpunkt 1 und der groesste Performance-Gewinn sind derselbe Umbau.
+
+
+4. WIREFRAME, KEIN FILL, KEIN SORT — und ein z-Detail
+------------------------------------------------------
+renderer.js:291-299 zeichnet ausschliesslich Linien. Sortiert wird nicht nach
+Flaechen, sondern die Kanten werden in 16 Helligkeitstoepfe nach MITTLERER
+KANTENTIEFE einsortiert (:285-287) und die Toepfe von fern nach nah gestrichen.
+Kein Painter's, kein Fill. M1 offen: bestaetigt.
+
+WICHTIG FUER DIE ZIEH-MATHE: magic() teilt nicht durch das rotierte z, sondern
+durch mesh[i].z + dz. translate_z (renderer.js:31-33) addiert dz in Zeile
+279-280, BEVOR magic() drankommt. Checklistenpunkt 1 sagt "z = das rotierte z
+nach R" — das sind zwei verschiedene Zahlen. In Rueckweg-Schritt 2 muss
+
+    vz = mesh[i].z + dz
+
+stehen, sonst ist die Skala um genau dz daneben.
+
+Gecacht wird aktuell gar nichts pro Vertex; toepfe haelt fertige
+Bildschirmpunkte, pro Kante, und wird jeden Frame neu alloziert.
+
+
+5. REDRAW — DAUER-LOOP, NICHTS ZU TRIGGERN
+-------------------------------------------
+renderer.js:302 und :304 — setTimeout(frame, 1000 / FPS) mit FPS = 30 (:29).
+Laeuft durchgehend, kein requestAnimationFrame, kein Dirty-Flag.
+"Redraw on change" ist geschenkt.
+
+Einschraenkung aus docs/performance.md: der Timeout wird NACH der Arbeit
+gesetzt, die echte Periode ist also Arbeit + 33,3 ms. Bei grossen Modellen
+liegt die reale Rate deutlich unter 30 fps.
+
+
+6. MAUS-HANDLING — ziehen ist das Geruest, Achtung bei den Koordinaten
+----------------------------------------------------------------------
+- let ziehen = false (:172) — genau der "wird gezogen"-State zum Recyceln.
+- mousedown auf LEINWAND (:203-216): button === 3 -> Achse + return; alles
+  ausser button === 0 -> return; sonst ziehen = true,
+  letzte = {clientX, clientY}, preventDefault().
+- mousemove auf WINDOW (:248-253), nicht auf der Leinwand:
+  drehY += (clientX - letzte.x) * 0.01
+  drehX += (letzte.y - clientY) * 0.01
+- mouseup auf WINDOW (:247) -> ziehen = false. Bewusst auf window, damit das
+  Modell nicht haengenbleibt, wenn man aus der Leinwand rausfaehrt.
+- Rechte Taste hat keinen eigenen Handler, sie wird im Wheel ueber die
+  Bitmaske e.buttons & 2 abgefragt (:236).
+
+STOLPERSTEIN FUERS PICKEN: ueberall wird clientX/clientY benutzt — das ist
+viewport-relativ. Fuer einen Treffertest gegen {sx,sy} braucht es
+leinwand-lokale Koordinaten, also getBoundingClientRect(). Und da der Backing
+Store fest auf 1200x1200 steht (:2-3), die Leinwand aber ohne CSS-Groesse im
+Layout liegt: sobald sie skaliert dargestellt wird, muss zusaetzlich mit
+leinwand.width / rect.width umgerechnet werden. Fuer die Rotation war das egal,
+weil dort nur Deltas zaehlen — beim Picking sind es absolute Positionen.
+
+
+7. SEITENKNOPF — funktioniert, aber nicht in WebStorms Vorschau
+----------------------------------------------------------------
+renderer.js:203-211: mousedown mit e.button === 3 -> preventDefault() +
+achseWechseln(). Zusaetzlich auxclick (:220-222) mit preventDefault() fuer
+Button 3 UND 4 — Guertel und Hosentraeger gegen die Zurueck-Navigation, weil
+manche Browser die an auxclick haengen statt an mousedown. contextmenu ist
+ebenfalls unterdrueckt (:225).
+
+preventDefault ist also noetig und schon da. ABER: laut docs/errors.md reicht
+WebStorms eingebaute Vorschau (JCEF) die Daumentasten ueberhaupt nicht an die
+Seite durch — deshalb liegt der Achsenwechsel doppelt auf der Taste "a"
+(:200-202). Wenn Edit-Mode auf einem Seitenknopf liegt, braucht es die
+Tastatur-Zweitbelegung VON ANFANG AN, sonst ist es in der ueblichen Umgebung
+nicht testbar. Button 4 ist noch frei — er wird nur geschluckt, nicht benutzt.
+
+
+8. MODELL-QUELLE — die tiefe Kopie existiert schon
+---------------------------------------------------
+renderer.js:80-81, Modulebene mit Top-Level-await:
+
+    const model = await importModel("hand1_g128");
+    const fs = model.fs
+
+Und :86 baut mesh. Weil rotate() mit Spread (...v) jedes Mal ein NEUES Objekt
+zurueckgibt, teilt mesh keine Vertex-Objekte mit model.vs — mesh ist bereits
+eine echte tiefe Kopie, nur eben in gedrehter Form. model.vs wird nach Zeile 86
+ausschliesslich noch gelesen, in schwerpunkt() (:102).
+
+Die Kopier-Frage ist damit weniger "woher nehme ich eine Kopie" als "welche der
+beiden bestehenden Fassungen ist die Wahrheit".
+
+
+WAS DER PLAN NOCH NICHT ABDECKT
+================================
+- zFenster() (:158-168) liest mesh und laeuft nur im Rotationszweig (:264).
+  Nach einer Vertex-Verschiebung ist das Farbfenster stale. (Es ist ohnehin
+  schon kaputt beim Zoomen — F5 in docs/performance.md.)
+
+- kanten muss beim Ziehen nicht neu gebaut werden — die Annahme stimmt, die
+  Indizes aendern sich nicht. ABER schwerpunkt() haengt an den Positionen, und
+  CUT/kanten werden nur bei Cut- oder Achsenaenderung neu berechnet (:192-196,
+  :268-272). Zieht man einen Vertex ueber die Schnittebene, bleibt die
+  Kantenliste veraltet, bis das naechste Mal gescrollt wird. Sieht dann aus wie
+  ein Picking-Bug, ist keiner.
+
+- Zoom waehrend des Drags aendert dz und damit den Divisor. "vz ueber den
+  ganzen Drag konstant" gilt nur, wenn das Rad waehrend des Ziehens gesperrt
+  ist.
+
+
+EMPFEHLUNG ZUR REIHENFOLGE
+===========================
+Die Punkte 1 und 3 der Checkliste und die Antwort auf Frage 2 laufen auf
+denselben Umbau hinaus: EINE ROTATIONSMATRIX PRO FRAME PLUS EIN
+VERTEX-DURCHLAUF, DER {sx, sy, z} FUELLT. Das ist gleichzeitig F1/F2/F3 aus
+docs/performance.md, also der groesste Performance-Gewinn, den es im Renderer
+gibt — und danach steht R zum Transponieren und der Cache zum Picken bereit,
+statt beides extra zu bauen.
+
+Andersherum, also mesh direkt editieren, spart die Matrix, handelt sich aber
+das Auseinanderlaufen von model.vs und den toten Cutaway ein. Das waere ein
+bewusster Tausch, kein Versehen — nur sollte er im Plan stehen.

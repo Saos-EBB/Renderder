@@ -1,5 +1,21 @@
 # Build Log
 
+## 2026-08-09 — chore(repo): Baseline für Edit-Mode, cube zurück als Testmodell
+**Was:** Startpunkt für Weg A auf Branch `editmode/weg-a`. Zwei Dinge, die vorher
+liegen mussten. Erstens der Arbeitsstand, der uncommittet im Baum lag und in genau den
+zwei Dateien steckt, die der Umbau anfasst: `leinwand.width` 1300 → 1200 und das
+Startmodell in `renderer.js`, dazu die zwölf neuen Modellnamen in `modelle.js`. Ohne
+diesen Commit hätte jeder Edit-Mode-Step sie mitgeschleppt und sein Diff wäre nicht
+mehr lesbar gewesen. Zweitens `cube.js`, aus `bd95aa9^` zurückgeholt — 8 Vertizes,
+2 Vierecke plus 4 Streben. Das **kehrt die Löschung aus `bd95aa9` um**, wo es hiess
+„seit es echte Meshes gibt ohne Zweck": für Vertex-Picking braucht es ein Modell, bei
+dem man die Ecken einzeln sieht und nachzählen kann, und 8 Vertizes sind dafür genau
+richtig. Auf `hand1_g128` mit 31.516 Vertizes ist ein versetzter Punkt nicht zu sehen.
+**Nicht gebaut:** kein neu geschriebenes Testmodell (der alte Würfel kommt 1:1 aus der
+History), kein Aufräumen an `cutInHalf.js`, `stl2model.js` (steht lokal auf
+`MODELL_NAME = "XXXX"`) oder der gelöschten `.idea/vcs.xml` — die bleiben uncommittet
+liegen, sie gehören nicht zu diesem Umbau.
+
 ## 2026-08-09 — chore(repo): fünf zu grosse Modelle in .gitignore
 **Was:** `SegmentCraneo00`, `ct2003_kopf_CT2/CT3`, `skull_g128` und `ct2001_thorax`
 stehen jetzt namentlich in `.gitignore`, zusammen 90 MB. Anlass: ein `git add .` hatte

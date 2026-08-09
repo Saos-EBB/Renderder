@@ -1,5 +1,5 @@
 import {importModel} from "./modelle.js";
-leinwand.width = 1300
+leinwand.width = 1200
 leinwand.height = 1200
 const BACKGROUND = '#000000'
 const ctx = leinwand.getContext("2d")
@@ -77,7 +77,7 @@ let dz = 2.5;  // wo start ??
 // await, weil importModel jetzt dynamisch nachlaedt. Modell und mesh MUESSEN
 // vor den Maus-Listenern stehen: die feuern sonst waehrend des await und
 // greifen auf ein noch nicht initialisiertes mesh zu.
-const model = await importModel("skull");
+const model = await importModel("hand1_g128");
 const fs = model.fs
 //----------------------------------------------------
 
