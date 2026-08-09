@@ -1,5 +1,24 @@
 # Build Log
 
+## 2026-08-09 — feat(renderer): Edit-Mode-Toggle mit ockerfarbenem Rand
+**Was:** Step 2 von Weg A. Flag `editMode`, Toggle auf Taste **`e`** — die Taste ist
+die Wahrheit, nicht die Maus: WebStorms JCEF-Vorschau reicht die Daumentasten nicht
+an die Seite durch (`docs/errors.md`), ohne Tastatur-Binding wäre der Modus in der
+Standardumgebung nicht testbar. Button 4 liegt zusätzlich drauf, fürs echte
+Browser-Env; `auxclick` schluckte ihn bisher nur, jetzt hat er eine Wirkung. Die
+Vertex-Punkte aus Step 1 zeichnen nur noch im Edit-Mode — auf einem grossen Modell
+legen sie sich sonst als Raster über die Kanten. Dazu ein ockerfarbener Rahmen um die
+Leinwand als einzige Rückmeldung, dass der Modus läuft; an einem Modell ohne sichtbare
+Ecken sieht man sonst nicht, in welchem Zustand man ist. Der Rahmen sitzt um die halbe
+Strichdicke nach innen (`strokeRect` zentriert die Linie auf dem Pfad, sonst läge die
+äussere Hälfte ausserhalb), und `lineWidth` wird danach auf 1 zurückgestellt — Kanten
+und Rahmen teilen sich den Kontext, der nächste Frame zöge sonst fette Linien.
+Bewusst NICHT in die bestehenden Handler eingegriffen: Rotation, Zoom und Schnitt
+verhalten sich im Edit-Mode Zeichen für Zeichen wie vorher.
+**Nicht gebaut:** kein Picking, kein Highlight, kein Ziehen — Step 3 und 4. Keine
+Konfigurierbarkeit des Rands über Farbe und Dicke hinaus, kein Zustand der den Reload
+überlebt, keine Anzeige des Modus als Text.
+
 ## 2026-08-09 — feat(renderer): Projektions-Cache pro Vertex + Vertex-Punkte
 **Was:** Step 1 von Weg A. Neuer Durchlauf `punkteRechnen()` projiziert einmal pro
 Frame **jeden Vertex einmal** nach `psx/psy/psz`; die Kantenschleife projiziert nicht

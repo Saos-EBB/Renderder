@@ -210,6 +210,16 @@ function punkteRechnen() {
 const DOT_FARBE = "#ffb454"
 const DOT_GROESSE = 3
 
+// --- Edit-Mode ---
+// Aus im Normalfall: die Punkte sind nur beim Editieren interessant, und auf
+// einem grossen Modell legen sie sich sonst als Raster ueber die Kanten.
+// Der Rand ist die einzige Rueckmeldung, dass der Modus laeuft — ohne ihn
+// sieht man an einem Modell ohne sichtbare Ecken nicht, in welchem Zustand
+// man ist.
+let editMode = false
+const RAND_FARBE = "#c8922a"
+const RAND_DICKE = 6
+
 // --- Maussteuerung ---
 let ziehen = false
 let letzte = {x: 0, y: 0}
@@ -239,8 +249,11 @@ function achseWechseln() {
 // Doppelt belegt, Daumentaste und Tastatur, und zwar nicht aus Bequemlichkeit:
 // WebStorms eingebaute Vorschau laeuft auf JCEF und reicht die Daumentasten
 // nicht bis zur Seite durch. In Brave arbeitet die Maustaste, im Preview "a".
+// Aus demselben Grund liegt der Edit-Mode auf "e": im Preview kommt Button 4
+// nicht an, die Taste ist also die Wahrheit und die Maustaste nur die Zugabe.
 window.addEventListener("keydown", (e) => {
     if (e.key === "a" || e.key === "A") achseWechseln()
+    if (e.key === "e" || e.key === "E") editMode = !editMode
 })
 leinwand.addEventListener("mousedown", (e) => {
     // Daumentaste schaltet die Schnittachse weiter. In der DOM-Zaehlung ist das
@@ -249,6 +262,13 @@ leinwand.addEventListener("mousedown", (e) => {
     if (e.button === 3) {
         e.preventDefault()      // sonst navigiert der Browser damit zurueck
         achseWechseln()
+        return
+    }
+    // Die zweite Daumentaste war bisher nur geschluckt. auxclick faengt sie
+    // schon ab, hier kommt die Wirkung dazu.
+    if (e.button === 4) {
+        e.preventDefault()
+        editMode = !editMode
         return
     }
     if (e.button !== 0) return  // nur links dreht, rechts gehoert dem Schnitt
@@ -347,11 +367,23 @@ function frame() {
 
     // Vertex-Punkte zuletzt, damit sie ueber den Kanten liegen — man soll
     // sehen, was greifbar ist, nicht was davor gezeichnet wurde.
-    ctx.fillStyle = DOT_FARBE
-    const halb = DOT_GROESSE / 2
-    for (let i = 0; i < mesh.length; i++) {
-        if (psz[i] <= NAH_GRENZE) continue
-        ctx.fillRect(psx[i] - halb, psy[i] - halb, DOT_GROESSE, DOT_GROESSE)
+    if (editMode) {
+        ctx.fillStyle = DOT_FARBE
+        const halb = DOT_GROESSE / 2
+        for (let i = 0; i < mesh.length; i++) {
+            if (psz[i] <= NAH_GRENZE) continue
+            ctx.fillRect(psx[i] - halb, psy[i] - halb, DOT_GROESSE, DOT_GROESSE)
+        }
+        // Rahmen um die ganze Leinwand. Um die halbe Dicke nach innen gesetzt,
+        // weil strokeRect die Linie auf dem Pfad zentriert — sonst liegt die
+        // aeussere Haelfte ausserhalb und man sieht nur den halben Rand.
+        // lineWidth wird danach zurueckgestellt: die Kanten im naechsten Frame
+        // zeichnen mit demselben Kontext und waeren sonst fett.
+        ctx.strokeStyle = RAND_FARBE
+        ctx.lineWidth = RAND_DICKE
+        ctx.strokeRect(RAND_DICKE / 2, RAND_DICKE / 2,
+            leinwand.width - RAND_DICKE, leinwand.height - RAND_DICKE)
+        ctx.lineWidth = 1
     }
     // ponytail: setTimeout statt requestAnimationFrame — driftet unter Last
     // und laeuft im Hintergrundtab weiter. Upgrade auf rAF, falls das stoert.
