@@ -1,5 +1,29 @@
 # Build Log
 
+## 2026-08-09 — feat(renderer): Vertex picken + Highlight
+**Was:** Step 3 von Weg A. Linksklick im Edit-Mode sucht über den Projektions-Cache
+den nächsten Vertex im Radius und markiert ihn rot; noch kein Ziehen — Picking wird
+**vor** der Zieh-Mathe bewiesen, damit man nie beides gleichzeitig debuggt.
+Drei Entscheidungen, die den Ausschlag geben:
+`leinwandPos()` rechnet `clientX/clientY` über `getBoundingClientRect()` in
+Leinwand-Koordinaten um, **inklusive** `leinwand.width / rect.width` — der Backing
+Store steht fest auf 1200×1200, die Leinwand im Layout kann skaliert dargestellt sein,
+ohne den zweiten Faktor trifft der Test dann daneben. Für die Rotation war das egal,
+weil dort nur Deltas zählen; beim Picking sind es absolute Positionen.
+Bei Überlappung gewinnt der kleinste `psz`, also der vorderste Punkt — sonst bekäme man
+den, der zufällig zuerst in der Schleife auftaucht, bei einem geschlossenen Modell also
+gern den auf der Rückseite. Verglichen wird das Distanz-**Quadrat**, die Wurzel ändert
+an der Reihenfolge nichts.
+Gehalten wird der **Index**, nicht das Vertex-Objekt: `mesh` wird bei jeder Drehung per
+`map` neu zugewiesen, eine Objektreferenz zeigte danach auf eine Leiche aus dem letzten
+Frame. Trifft der Klick daneben, fällt er auf das gewohnte Drehen zurück — sonst wäre
+das Modell im Edit-Mode festgenagelt und an Ecken auf der Rückseite käme man nie heran.
+Beim Verlassen des Modus wird die Auswahl gelöscht (`editModeUmschalten()`), sonst
+leuchtet beim nächsten Einschalten eine Ecke weiter, die inzwischen weggedreht ist.
+**Nicht gebaut:** kein Ziehen (Step 4), kein Mehrfach-Select, kein Deselect durch Klick
+ins Leere, kein Hover-Highlight ohne Klick, keine Beschleunigungsstruktur für die
+Nächste-Suche — lineare Schleife über alle Vertizes, einmal pro Klick, nicht pro Frame.
+
 ## 2026-08-09 — feat(renderer): Edit-Mode-Toggle mit ockerfarbenem Rand
 **Was:** Step 2 von Weg A. Flag `editMode`, Toggle auf Taste **`e`** — die Taste ist
 die Wahrheit, nicht die Maus: WebStorms JCEF-Vorschau reicht die Daumentasten nicht

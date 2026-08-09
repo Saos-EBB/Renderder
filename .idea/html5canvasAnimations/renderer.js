@@ -220,6 +220,55 @@ let editMode = false
 const RAND_FARBE = "#c8922a"
 const RAND_DICKE = 6
 
+// Index des gegriffenen Vertex, -1 = keiner. Index und nicht das Vertex-Objekt:
+// mesh wird bei jeder Drehung komplett neu zugewiesen (mesh.map in frame()),
+// eine festgehaltene Objektreferenz zeigte danach auf eine Leiche aus dem
+// letzten Frame. Der Index ueberlebt das, weil kanten und fs ihn auch benutzen.
+let gegriffen = -1
+// Greifradius in Bildschirmpixeln. Grosszuegig, weil die Punkte nur 3 px sind —
+// wer genau treffen muesste, waere beim Explorieren nur beschaeftigt.
+const GREIF_RADIUS = 12
+const GEGRIFFEN_FARBE = "#ff2d55"
+const GEGRIFFEN_GROESSE = 9
+
+// Maus-Position in LEINWAND-Koordinaten. Die uebrigen Handler rechnen mit
+// clientX/clientY, also viewport-relativ — fuer die Drehung egal, dort zaehlen
+// nur Deltas. Beim Picken sind es absolute Positionen, und die muessen im
+// selben Raum liegen wie psx/psy.
+// Der zweite Faktor ist Pflicht und nicht Vorsicht: der Backing Store steht
+// fest auf 1200x1200, die Leinwand im Layout kann skaliert dargestellt sein.
+// Ohne ihn trifft der Test bei skalierter Anzeige daneben.
+function leinwandPos(e) {
+    const rect = leinwand.getBoundingClientRect()
+    return {
+        x: (e.clientX - rect.left) * (leinwand.width / rect.width),
+        y: (e.clientY - rect.top) * (leinwand.height / rect.height),
+    }
+}
+
+// Naechster Vertex zu einem Leinwand-Punkt, oder -1. Verglichen wird das
+// QUADRAT der Distanz — die Wurzel aendert an der Reihenfolge nichts und
+// kostet pro Vertex.
+// Bei Ueberlappung gewinnt der kleinste psz, also der vorderste: was vorne
+// liegt, ist das, was man anklickt. Ohne den Test bekaeme man den, der zufaellig
+// zuerst in der Schleife auftaucht — bei einem geschlossenen Modell also gern
+// den auf der Rueckseite.
+function vertexAn(x, y) {
+    let treffer = -1
+    let bestesZ = Infinity
+    const r2 = GREIF_RADIUS * GREIF_RADIUS
+    for (let i = 0; i < mesh.length; i++) {
+        if (psz[i] <= NAH_GRENZE) continue   // hinter der Kamera, psx/psy sind Muell
+        const dx = psx[i] - x
+        const dy = psy[i] - y
+        if (dx * dx + dy * dy > r2) continue
+        if (psz[i] >= bestesZ) continue
+        bestesZ = psz[i]
+        treffer = i
+    }
+    return treffer
+}
+
 // --- Maussteuerung ---
 let ziehen = false
 let letzte = {x: 0, y: 0}
@@ -249,11 +298,18 @@ function achseWechseln() {
 // Doppelt belegt, Daumentaste und Tastatur, und zwar nicht aus Bequemlichkeit:
 // WebStorms eingebaute Vorschau laeuft auf JCEF und reicht die Daumentasten
 // nicht bis zur Seite durch. In Brave arbeitet die Maustaste, im Preview "a".
+// Beim Verlassen die Auswahl loeschen, sonst leuchtet beim naechsten Einschalten
+// die Ecke von vorhin weiter — und das an einer Stelle, die inzwischen
+// weggedreht sein kann.
+function editModeUmschalten() {
+    editMode = !editMode
+    gegriffen = -1
+}
 // Aus demselben Grund liegt der Edit-Mode auf "e": im Preview kommt Button 4
 // nicht an, die Taste ist also die Wahrheit und die Maustaste nur die Zugabe.
 window.addEventListener("keydown", (e) => {
     if (e.key === "a" || e.key === "A") achseWechseln()
-    if (e.key === "e" || e.key === "E") editMode = !editMode
+    if (e.key === "e" || e.key === "E") editModeUmschalten()
 })
 leinwand.addEventListener("mousedown", (e) => {
     // Daumentaste schaltet die Schnittachse weiter. In der DOM-Zaehlung ist das
@@ -268,10 +324,24 @@ leinwand.addEventListener("mousedown", (e) => {
     // schon ab, hier kommt die Wirkung dazu.
     if (e.button === 4) {
         e.preventDefault()
-        editMode = !editMode
+        editModeUmschalten()
         return
     }
     if (e.button !== 0) return  // nur links dreht, rechts gehoert dem Schnitt
+    // Im Edit-Mode fragt der Linksklick zuerst, ob eine Ecke unter dem Cursor
+    // liegt. Trifft er eine, gehoert der Klick ihr und das Modell dreht nicht
+    // mit — man will die Ecke greifen, nicht die Ansicht verschieben.
+    // Trifft er daneben, faellt er auf das gewohnte Drehen zurueck: ohne das
+    // waere das Modell im Edit-Mode festgenagelt, und an Ecken auf der
+    // Rueckseite kaeme man nie heran.
+    if (editMode) {
+        const p = leinwandPos(e)
+        gegriffen = vertexAn(p.x, p.y)
+        if (gegriffen !== -1) {
+            e.preventDefault()
+            return
+        }
+    }
     ziehen = true
     letzte = {x: e.clientX, y: e.clientY}
     e.preventDefault()          // verhindert Text-Markieren beim Ziehen
@@ -373,6 +443,17 @@ function frame() {
         for (let i = 0; i < mesh.length; i++) {
             if (psz[i] <= NAH_GRENZE) continue
             ctx.fillRect(psx[i] - halb, psy[i] - halb, DOT_GROESSE, DOT_GROESSE)
+        }
+        // Der gegriffene Vertex danach und in Rot: groesser, damit man ihn
+        // zwischen den ockernen Punkten findet, und obenauf, damit ein
+        // benachbarter Punkt ihn nicht verdeckt.
+        // Die Tiefenpruefung auch hier — dreht man die Ecke nach hinten durch
+        // die Kamera, sind psx/psy Muell und der Fleck landet irgendwo.
+        if (gegriffen !== -1 && psz[gegriffen] > NAH_GRENZE) {
+            const gHalb = GEGRIFFEN_GROESSE / 2
+            ctx.fillStyle = GEGRIFFEN_FARBE
+            ctx.fillRect(psx[gegriffen] - gHalb, psy[gegriffen] - gHalb,
+                GEGRIFFEN_GROESSE, GEGRIFFEN_GROESSE)
         }
         // Rahmen um die ganze Leinwand. Um die halbe Dicke nach innen gesetzt,
         // weil strokeRect die Linie auf dem Pfad zentriert — sonst liegt die
