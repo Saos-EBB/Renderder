@@ -422,6 +422,41 @@ function achseWechseln() {
     cutZuruecksetzen()
     kantenBauen()
 }
+// --- Arbeitskopie ---
+// Beim Betreten des Edit-Mode wird der Stand gesichert, geaendert wird ab da an
+// der Kopie. Beim Verlassen bleiben die Aenderungen stehen — ein versehentliches
+// "e" darf keine Arbeit kosten, und es ist dieselbe Taste, die man staendig
+// drueckt. Der Weg zurueck liegt auf Shift+R.
+// Jeder Eintritt setzt einen neuen Stand. Wer raus und wieder rein geht, hat
+// damit die Aenderungen von vorhin im Ruecken statt sie zu verlieren.
+// Was mitkommt: die Vertizes und die manuellen Kanten. model.vs und fs werden
+// ohnehin nie angefasst.
+let schnappschuss = null
+function schnappschussNehmen() {
+    schnappschuss = {
+        mesh: mesh.map(v => ({x: v.x, y: v.y, z: v.z})),
+        extraKanten: extraKanten.map(([a, b]) => [a, b]),
+    }
+}
+// ACHTUNG, bewusster Nebeneffekt: die Orientierung steckt in mesh, es gibt
+// keine getrennte Rotation. Zuruecksetzen holt deshalb auch die Ansicht von
+// damals zurueck — das Modell springt in die Lage, in der es beim Betreten
+// stand. Trennen liesse sich das nur mit einer Matrix, also erst in Weg B.
+function schnappschussZurueck() {
+    if (schnappschuss === null) return
+    mesh = schnappschuss.mesh.map(v => ({x: v.x, y: v.y, z: v.z}))
+    extraKanten = schnappschuss.extraKanten.map(([a, b]) => [a, b])
+    // Der Schluesselsatz muss mitgehen, sonst gelten geloeschte Verbindungen
+    // weiter als vorhanden und liessen sich nicht neu ziehen.
+    extraSchluessel.clear()
+    for (const [a, b] of extraKanten) {
+        extraSchluessel.add(a < b ? `${a},${b}` : `${b},${a}`)
+    }
+    gegriffen = -1
+    anker = -1
+    kantenBauen()
+    zFenster()
+}
 // Beim Verlassen die Auswahl loeschen, sonst leuchtet beim naechsten Einschalten
 // die Ecke von vorhin weiter — und das an einer Stelle, die inzwischen
 // weggedreht sein kann.
@@ -429,6 +464,7 @@ function editModeUmschalten() {
     editMode = !editMode
     gegriffen = -1
     anker = -1
+    if (editMode) schnappschussNehmen()
 }
 // Alle drei Funktionen liegen doppelt, Daumentaste und Tastatur, und zwar nicht
 // aus Bequemlichkeit: WebStorms eingebaute Vorschau laeuft auf JCEF und reicht
@@ -445,6 +481,11 @@ window.addEventListener("keydown", (e) => {
     // Anker loslassen. Braucht es, seit ein Klick auf den Anker ihn haelt
     // statt ihn abzuwaehlen — sonst haengt das Gummiband am Cursor fest.
     if (e.key === "Escape") anker = -1
+    // Zurueck auf den Stand vom Betreten. Auf Shift+R und nicht auf "r" allein:
+    // die Taste wirft die ganze Sitzung weg, die soll man nicht streifen.
+    if (editMode && e.shiftKey && (e.key === "R" || e.key === "r")) {
+        schnappschussZurueck()
+    }
 })
 leinwand.addEventListener("mousedown", (e) => {
     // Die vordere Daumentaste. In der DOM-Zaehlung ist das button 3; die Maus

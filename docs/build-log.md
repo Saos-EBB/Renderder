@@ -1,5 +1,24 @@
 # Build Log
 
+## 2026-08-10 — feat(renderer): Arbeitskopie beim Betreten des Edit-Mode
+**Was:** Step 8. Beim Einschalten des Edit-Mode wird der Stand gesichert, geändert wird ab
+da an der Kopie. Beim Verlassen bleiben die Änderungen stehen — ein versehentliches `e`
+darf keine Arbeit kosten, und es ist dieselbe Taste, die man ständig drückt. Der Weg zurück
+liegt auf **Shift+R**, nicht auf `r` allein: eine Taste, die die ganze Sitzung wegwirft,
+soll man nicht streifen. Jeder Eintritt setzt einen neuen Stand, wer raus und wieder rein
+geht hat die Änderungen von vorhin also im Rücken statt sie zu verlieren.
+Gesichert werden die Vertizes und die manuellen Kanten; `model.vs` und `fs` werden ohnehin
+nie angefasst. Beim Zurücksetzen geht der Schlüsselsatz mit — sonst gälten entfernte
+Verbindungen weiter als vorhanden und liessen sich nicht neu ziehen.
+**Bewusster Nebeneffekt:** die Orientierung steckt in `mesh`, es gibt keine getrennte
+Rotation. Zurücksetzen holt deshalb auch die Ansicht von damals zurück, das Modell springt
+in die Lage vom Betreten. Trennen liesse sich das nur mit einer Matrix, also erst in Weg B.
+**Anmerkung zur Anforderung:** eine Kopie beim Betreten ändert für sich genommen nichts am
+Verhalten — `mesh` war schon immer von `model.vs` getrennt. Sichtbar wird sie erst durch
+den Weg zurück, deshalb kommt das Zurücksetzen im selben Step und nicht später.
+**Nicht gebaut:** kein mehrstufiges Undo, kein Zurücksetzen einzelner Punkte, kein Dialog,
+kein Schnappschuss beim Verlassen, kein Zurück auf den Dateizustand (das ist ein Reload).
+
 ## 2026-08-10 — fix(renderer): Verbinden sichtbar machen — Gummiband + Anker-Falle
 **Was:** Step 7. Das Verbinden aus Step 6 funktionierte, war aber praktisch nicht
 bedienbar — Meldung vom Nutzer: „ich sehs nicht, die Punkte werden gesetzt".
