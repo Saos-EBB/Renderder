@@ -95,3 +95,14 @@ Browser blockieren ES-Module über `file://` — ein lokaler Server ist nötig:
 ```
 npx serve .idea/html5canvasAnimations
 ```
+
+## Lizenz und Herkunft
+
+- **Code:** [MIT](LICENSE), © Kevin Schaberl.
+- **Startpunkt:** der erste Wurf von `renderer.js` basiert auf Tsodings Code aus
+  [tsoding/formula](https://github.com/tsoding/formula) (MIT, © 2025 Alexey
+  Kutepov). Sein Lizenzhinweis steht mit in [`LICENSE`](LICENSE).
+- **3D-Modelle** (`.idea/html5canvasAnimations/modelle/`): ausschließlich
+  CC0-/Public-Domain-Modelle anderer Autor:innen, für den Renderer konvertiert.
+  Die Rechte an dargestellten Figuren (z. B. Pochita aus *Chainsaw Man*)
+  liegen bei deren Rechteinhaber:innen.
