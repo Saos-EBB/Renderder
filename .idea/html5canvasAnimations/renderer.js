@@ -81,7 +81,7 @@ let dz = 2.5;  // wo start ??
 // Auf einem 31k-Modell sieht man einen um zwei Pixel versetzten Punkt nicht.
 // Name in eine Konstante, weil das Speichern ihn braucht: die Datei heisst
 // danach, und der Bezeichner darin auch.
-const MODELL_NAME = "cube"
+const MODELL_NAME = "skull"
 const model = await importModel(MODELL_NAME);
 const fs = model.fs
 //----------------------------------------------------
@@ -149,20 +149,39 @@ let extraKanten = []
 // Verhindert, dass dieselbe Verbindung mehrfach in der Liste landet. Derselbe
 // Schluessel wie unten, damit a-b und b-a als eine Kante gelten.
 const extraSchluessel = new Set()
+// Welche Vertizes der Cutaway stehen laesst. 1 = liegt auf mindestens einer
+// Flaeche, die nicht weggeschnitten ist.
+// Das Ding faellt in kantenBauen() nebenbei ab: dort laufen die Flaechen ohnehin
+// durch, und nur dort steht fest, was der Schnitt uebrig laesst. Eine eigene
+// Schleife waere derselbe Durchlauf ein zweites Mal.
+// Gebraucht wird es fuers Picken und die Punktwolke — beides sah bisher das
+// ganze Modell, auch die abgeschnittene Haelfte. Die liegt aber VORNE, und
+// beim Picken gewann die Tiefe: aufgeschnitten und innen geklickt, griff man
+// zuverlaessig die Aussenhaut, die man gerade weggeschnitten hatte.
+// Uint8Array statt Set: der Test laeuft pro Vertex und pro Frame, und ein
+// Index-Lookup ist billiger als ein Hash.
+let sichtbar = new Uint8Array(model.vs.length)
 function kantenBauen() {
     kanten = []
+    sichtbar.fill(0)
     const gesehen = new Set()
     for (const f of fs) {
         if (schwerpunkt(f) > CUT) continue
         for (let i = 0; i < f.length; i++) {
             const a = f[i]
             const b = f[(i + 1) % f.length]
+            sichtbar[a] = 1
             const key = a < b ? `${a},${b}` : `${b},${a}`
             if (gesehen.has(key)) continue
             gesehen.add(key)
             kanten.push([a, b])
         }
     }
+    // Von Hand gesetzte Punkte stehen in keiner Flaeche und waeren nach dem
+    // fill(0) fuer immer weg. Sie liegen ab model.vs.length und gelten immer als
+    // sichtbar — dieselbe Entscheidung wie bei den manuellen Kanten oben: was du
+    // selbst gebaut hast, verschwindet nicht im Schnitt.
+    for (let i = model.vs.length; i < sichtbar.length; i++) sichtbar[i] = 1
     // Anhaengen statt in der Zeichenschleife zu beruecksichtigen: so ueberleben
     // die manuellen Kanten jeden Achsen- und Cut-Neubau von selbst, und die
     // Schleife merkt nichts davon — Shading, Nah-Grenze und Farbtoepfe gelten
@@ -226,17 +245,23 @@ let psz = new Float64Array(model.vs.length)
 // Auf mesh.length bringen. Der Inhalt wird zwar jeden Frame neu gerechnet, aber
 // zwischen dem Einfuegen und dem naechsten frame() liest schon jemand mit — der
 // frische Punkt saesse sonst fuer einen Frame auf 0,0.
+// sichtbar waechst mit: es wird ueber denselben Index gelesen wie psx/psy/psz,
+// und ein zu kurzes Array liefert undefined — der frische Punkt waere damit
+// unsichtbar und ungreifbar.
 function puffernWachsen() {
     if (psx.length >= mesh.length) return
     const neuX = new Float64Array(mesh.length)
     const neuY = new Float64Array(mesh.length)
     const neuZ = new Float64Array(mesh.length)
+    const neuS = new Uint8Array(mesh.length)
     neuX.set(psx)
     neuY.set(psy)
     neuZ.set(psz)
+    neuS.set(sichtbar)
     psx = neuX
     psy = neuY
     psz = neuZ
+    sichtbar = neuS
 }
 // Vertizes vor dieser Tiefe liegen hinter der Kamera. magic() wuerde sie
 // gespiegelt und riesig ins Bild werfen; beim Reinzoomen faehrt das Modell da
@@ -310,20 +335,33 @@ function leinwandPos(clientX, clientY) {
 // Naechster Vertex zu einem Leinwand-Punkt, oder -1. Verglichen wird das
 // QUADRAT der Distanz — die Wurzel aendert an der Reihenfolge nichts und
 // kostet pro Vertex.
-// Bei Ueberlappung gewinnt der kleinste psz, also der vorderste: was vorne
-// liegt, ist das, was man anklickt. Ohne den Test bekaeme man den, der zufaellig
-// zuerst in der Schleife auftaucht — bei einem geschlossenen Modell also gern
-// den auf der Rueckseite.
+// Gewonnen wird nach ABSTAND, die Tiefe entscheidet nur bei Gleichstand.
+// Vorher war es umgekehrt: unter allen Punkten im Radius gewann der vorderste.
+// Auf dem Wuerfel, an dem das entstand, war das dasselbe — da liegt nie mehr
+// als ein Punkt im Radius. Auf skull mit 40.062 Vertizes ist der mittlere
+// Punktabstand rund 3 px, in der Scheibe mit r=12 liegen also grob 50
+// Kandidaten, und der vorderste davon ist fast nie der unter dem Cursor. Das
+// Ergebnis sah aus wie ein fester Versatz, weil der Gewinner immer in dieselbe
+// Richtung abwich: zur kameranaechsten Flaeche hin.
+// Der grosse Radius darf damit bleiben — er hilft auf duennen Modellen und
+// kostet auf dichten nichts mehr.
 function vertexAn(x, y) {
     let treffer = -1
+    let bestesD2 = Infinity
     let bestesZ = Infinity
     const r2 = GREIF_RADIUS * GREIF_RADIUS
     for (let i = 0; i < mesh.length; i++) {
         if (psz[i] <= NAH_GRENZE) continue   // hinter der Kamera, psx/psy sind Muell
+        if (!sichtbar[i]) continue           // vom Cutaway entfernt, also auch nicht greifbar
         const dx = psx[i] - x
         const dy = psy[i] - y
-        if (dx * dx + dy * dy > r2) continue
-        if (psz[i] >= bestesZ) continue
+        const d2 = dx * dx + dy * dy
+        if (d2 > r2) continue
+        if (d2 > bestesD2) continue
+        // Exakter Gleichstand ist selten, aber genau der Fall, fuer den die
+        // Tiefe gedacht war: zwei Punkte uebereinander, vorne gewinnt.
+        if (d2 === bestesD2 && psz[i] >= bestesZ) continue
+        bestesD2 = d2
         bestesZ = psz[i]
         treffer = i
     }
@@ -334,17 +372,21 @@ function vertexAn(x, y) {
 // Vertex, ohne Radiusgrenze. Ein Klick liefert nur x und y — die dritte Zahl
 // muss irgendwoher kommen, und "so tief wie das, woneben ich klicke" ist die
 // einzige Wahl, die ohne Vorauswahl auskommt.
-// Bewusst NICHT vertexAn() mit grossem Radius: dort gewinnt unter mehreren
-// Treffern der vorderste. Ueber die ganze Leinwand angewandt waere das immer
-// der kameranaechste Punkt des Modells, egal wo der Cursor steht. Hier zaehlt
-// allein der Bildschirmabstand, also eine eigene Schleife.
+// Bewusst NICHT vertexAn(): das hat einen Radius, und ohne Treffer darin gaebe
+// es keine Tiefe. Hier zaehlt der naechste Punkt ueberhaupt, also eine eigene
+// Schleife.
 // Liegt gar nichts vor der Kamera, faellt es auf dz zurueck — das ist die Ebene
 // durch den Modellursprung.
+// Der Cutaway zaehlt auch hier: schneidet man auf und setzt innen einen Punkt,
+// soll er die Tiefe von dem bekommen, was man sieht, und nicht von der
+// weggeschnittenen Aussenhaut davor — sonst klebt der neue Punkt auf der
+// Oberflaeche statt im Hohlraum.
 function naechsteTiefe(x, y) {
     let bestesD2 = Infinity
     let tiefe = dz
     for (let i = 0; i < mesh.length; i++) {
         if (psz[i] <= NAH_GRENZE) continue
+        if (!sichtbar[i]) continue
         const dx = psx[i] - x
         const dy = psy[i] - y
         const d2 = dx * dx + dy * dy
@@ -378,6 +420,10 @@ function vertexEinfuegen(lx, ly) {
     psx[i] = lx
     psy[i] = ly
     psz[i] = vz
+    // Sofort sichtbar setzen und nicht auf kantenBauen() warten: das laeuft hier
+    // nicht mit, und bis zum naechsten Achsen- oder Cut-Wechsel waere der eben
+    // gesetzte Punkt weder zu sehen noch zu greifen.
+    sichtbar[i] = 1
 
     anker = i
     // Die z-Spanne kann sich durch den neuen Punkt geweitet haben, sonst
@@ -784,6 +830,11 @@ function frame() {
         const halb = DOT_GROESSE / 2
         for (let i = 0; i < mesh.length; i++) {
             if (psz[i] <= NAH_GRENZE) continue
+            // Dieselbe Bedingung wie beim Picken, und das ist der Punkt: was du
+            // siehst, ist genau das, was du treffen kannst. Vorher lagen die
+            // Punkte der weggeschnittenen Haelfte weiter im Bild und sahen aus
+            // wie greifbare Ecken.
+            if (!sichtbar[i]) continue
             ctx.fillRect(psx[i] - halb, psy[i] - halb, DOT_GROESSE, DOT_GROESSE)
         }
         // Der Anker als groesster Fleck und ganz unten in der Reihenfolge: der

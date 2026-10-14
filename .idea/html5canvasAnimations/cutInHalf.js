@@ -28,7 +28,7 @@
 // Relativ geht auch, wird dann aber von genau diesem Working directory
 // aus gezaehlt, nicht vom Speicherort dieser Datei.
 // Findet er nichts, meldet Node ENOENT mit dem Pfad den er gesucht hat.
-const STL_DATEI = "/home/saosgone/Schreibtisch/coding/stlFiles/skull.stl";
+const STL_DATEI = "/home/saosgone/Schreibtisch/coding/stlFiles/Segmentation_craneo camilo.stl";
 
 // Zellen pro laengster Achse — DER Hebel. Die Zellgroesse ist die groesste
 // Bounding-Box-Ausdehnung geteilt durch diesen Wert, alle Ecken in derselben
@@ -40,14 +40,14 @@ const STL_DATEI = "/home/saosgone/Schreibtisch/coding/stlFiles/skull.stl";
 // drehst nochmal. Ziel sind ungefaehr 40.000 — mehr vertraegt der Renderer
 // nicht. Zwischen GITTER und Vertex-Zahl liegt die Form der Oberflaeche,
 // zwei bis drei Laeufe sind normal.
-const GITTER = 64;
+const GITTER = 128;
 
 // Wohin die verkleinerte .stl geschrieben wird. Gleiche Regel wie oben:
 // absolut = eindeutig, relativ = vom Working directory aus.
 // Der Ordner wird angelegt falls es ihn nicht gibt. Der Dateiname entsteht aus
 // dem Original plus dem GITTER — so ueberschreibt der naechste Versuch den
 // vorigen nicht, und du siehst der Datei an, mit welchem Wert sie entstand.
-const AUSGABE_ORDNER = "/home/saosgone/Schreibtisch/coding/stlFiles";
+const AUSGABE_ORDNER = "/home/saosgone/Schreibtisch/coding/cutStlFiles";
 
 // ============================================================================
 //  ab hier nichts mehr eintragen

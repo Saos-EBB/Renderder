@@ -34,7 +34,7 @@
 // .stl darin umgewandelt — nicht rekursiv, Unterordner bleiben aussen vor.
 // Eine kaputte Datei haelt den Stapel nicht auf, sie wird gemeldet und
 // uebersprungen. Genau der Fall skullwithbrain.stl.
-const STL_QUELLE = "/home/saosgone/Schreibtisch/coding/stlFiles/Duo Baldurs Gate.stl"
+const STL_QUELLE = "/home/saosgone/Schreibtisch/coding/stlFiles";
 // Wohin die fertige .js geschrieben wird. Gleiche Regel wie oben:
 // absolut = eindeutig, relativ = vom Working directory aus.
 // Der Ordner wird angelegt falls es ihn nicht gibt.
@@ -56,7 +56,7 @@ const MODELLE_JS = "/home/saosgone/Schreibtisch/coding/.idea/html5canvasAnimatio
 // Gilt nur bei einer einzelnen Datei. Zeigt STL_QUELLE auf einen Ordner, wird
 // dieser Wert ignoriert — zwanzig Dateien koennen nicht denselben Namen haben,
 // jede bekommt dann ihren aus dem Dateinamen.
-const MODELL_NAME = "duoOG";
+const MODELL_NAME = "XXXX";
 
 // Halbe Ausdehnung des fertigen Modells. Bei 1.2 reicht es von -1.2 bis +1.2,
 // zentriert um 0,0,0. Passt zu deinen anderen Modellen und zu screen(),
