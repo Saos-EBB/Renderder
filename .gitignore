@@ -20,3 +20,4 @@ obj2model/
 # Undezimiertes Original, 41 MB — vier Mal groesser als das groesste getrackte
 # Modell und weit ueber dem, was der Renderer packt. Bleibt lokal.
 .idea/html5canvasAnimations/modelle/duoOG.js
+.idea/
